@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "components/LicenseProvider.tsx",
+    "components/LicenseGate.tsx",
+    "components/LicenseBanner.tsx",
+    "components/LicenseActivationScreen.tsx",
+    "components/LicenseOfflineScreen.tsx",
+    "components/GeminiConfirmationModal.tsx",
+    "app/(tabs)/index.tsx",
+    "lib/license-service.ts",
+    "lib/parser-engine/validators/name.ts",
+    "lib/parser-v5/engine.ts"
+  ]
+}

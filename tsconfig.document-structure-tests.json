@@ -1,0 +1,47 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "types": ["node"]
+  },
+  "include": [
+    "types/index.ts",
+    "lib/document-structure.ts",
+    "lib/document-layout.ts",
+    "lib/document-structured-evidence.ts",
+    "lib/document-parties-metadata.ts",
+    "lib/document-items-totals.ts",
+    "lib/document-monetary-consistency.ts",
+    "lib/document-completeness.ts",
+    "lib/document-structured-extraction.ts",
+    "lib/document-field-reliability.ts",
+    "lib/document-field-merge.ts",
+    "lib/document-label-dictionary.ts",
+    "lib/scan-operation-lifecycle.ts",
+    "lib/scan-trace.ts",
+    "lib/structured-layout-runtime.ts",
+    "lib/document-process-log.ts",
+    "lib/ocr-normalize.ts",
+    "tests/document-layout-structured.test.ts",
+    "tests/document-parties-metadata.test.ts",
+    "tests/document-items-totals.test.ts",
+    "tests/document-monetary-consistency.test.ts",
+    "tests/document-completeness-integration.test.ts"
+    ,"tests/certified-real-quote-layout.test.ts"
+    ,"tests/latest-real-document-semantic-guards.test.ts"
+    ,"tests/qa-real-structured-runtime.test.ts"
+    ,"tests/document-layout-runtime-bounds.test.ts"
+    ,"tests/document-structured-runtime-bounds.test.ts"
+    ,"tests/document-multipage-layout-deadline.test.ts"
+    ,"tests/document-semantic-fallback-qa.test.ts"
+    ,"tests/processing-i18n-completeness.test.ts"
+    ,"tests/document-process-progress.test.ts"
+    ,"lib/document-semantic-fallback.ts"
+    ,"lib/structured-extraction-budget.ts"
+    ,"tests/document-classify-lines-device-path.test.ts"
+    ,"lib/document-line-item-numeric-repair.ts"
+    ,"tests/thermoflux-final-merge-17to9.test.ts"
+    ,"tests/thermoflux-deterministic-7to6.test.ts"
+  ]
+}

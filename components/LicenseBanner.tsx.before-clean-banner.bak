@@ -1,0 +1,99 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useLicense } from './LicenseProvider';
+import { resolveLicenseBannerAiCredits } from '../lib/license-banner-ai-credits';
+import { colors } from '../lib/ui-theme';
+import { isRcTrialScanQuotaAdvertised } from '../lib/release-rc-policy';
+import { spacing, typography } from '../lib/ui-system';
+
+export function LicenseBanner() {
+  const { t } = useTranslation();
+  const { status, openActivation } = useLicense();
+
+  if (status.access === 'expired' || status.entitlement.status === 'EXPIRED') {
+    return (
+      <View style={[styles.wrap, styles.expired]}>
+        <Text style={styles.text}>{t('licenseExpiredBanner')}</Text>
+        <TouchableOpacity onPress={openActivation} accessibilityRole="button">
+          <Text style={styles.link}>{t('licenseActivate')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const trialActive =
+    (status.access === 'active' || status.access === 'offline_grace') &&
+    status.kind === 'trial';
+
+  if (!trialActive) {
+    return null;
+  }
+
+  const days = status.daysRemaining;
+  const scansUsed = isRcTrialScanQuotaAdvertised() ? status.trialScanCount : null;
+  const scansMax = isRcTrialScanQuotaAdvertised() ? status.trialMaxScans : null;
+  const scansRemaining = isRcTrialScanQuotaAdvertised()
+    ? status.trialScansRemaining
+    : null;
+  const aiCredits = resolveLicenseBannerAiCredits(status.aiCreditsRemaining);
+
+  const tone = days <= 3 ? styles.warn : styles.trial;
+
+  return (
+    <View style={[styles.wrap, tone]}>
+      <Text style={styles.text}>{t('licenseTrialBanner', { days })}</Text>
+      {scansUsed !== null && scansMax !== null ? (
+        <Text style={styles.subtext}>
+          {t('licenseTrialBannerScans', { used: scansUsed, max: scansMax })}
+        </Text>
+      ) : scansRemaining !== null ? (
+        <Text style={styles.subtext}>
+          {t('licenseTrialBannerScansRemaining', { remaining: scansRemaining })}
+        </Text>
+      ) : null}
+      {aiCredits !== null ? (
+        <Text style={styles.subtext}>
+          {t('licenseTrialAiCredits', { credits: aiCredits })}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: {
+    alignSelf: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+  },
+  trial: {
+    backgroundColor: colors.infoSurface,
+  },
+  warn: {
+    backgroundColor: colors.warningSurface,
+  },
+  expired: {
+    backgroundColor: colors.warningSurface,
+  },
+  text: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  subtext: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  link: {
+    ...typography.caption,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    fontWeight: '700',
+  },
+});

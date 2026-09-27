@@ -1,0 +1,3944 @@
+{
+  "9d1ae6c0-cb09-46f3-b78e-0d94f3547c8b": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "C.G.R. TARGHEE TIMBRI S.r.l",
+        "expected": "C.G.R. TARGHEE TIMBRI S.r.l",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@cgrtimbri.com",
+        "expected": "info@cgrtimbri.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445.366168 (work)\n329 8360542 (mobile)",
+        "expected": "0445.366168 (work)\n329 8360542 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.cgrtimbri.com",
+        "expected": "www.cgrtimbri.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Sede legale: Via Monte Grappa, 6/L - 36016 Thiene (VI) - 36016 - Thiene - VI - IT",
+        "expected": "Sede legale: Via Monte Grappa, 6/L - 36016 Thiene (VI) - 36016 - Thiene - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "04330160245",
+        "expected": "04330160245",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "04330160245",
+        "expected": "04330160245",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "a9baa86c-83a8-4b58-b182-f8b172326754": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Immobliare",
+        "expected": "Piano immobiliare",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Marco",
+        "expected": "Marco",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Cervo",
+        "expected": "Cervo",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Consulente",
+        "expected": "Consulente",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "cervo@immobiliare.com\nmceruo@pianoimmobiliare.com",
+        "expected": "cervo@immobiliare.com\nmceruo@pianoimmobiliare.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "347 52 50 399 (mobile)",
+        "expected": "347 52 50 399",
+        "ok": false,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.pianoimmobiliare.com",
+        "expected": "www.pianoimmobiliare.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Montello, 22 - Thiene (VI), Nr. 22 - Thiene (vi) - VI - IT",
+        "expected": "Via Montello, 22 - Thiene (VI), Nr. 22 - Thiene - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "22ff0688-cbd4-4c63-9465-da468f6df161": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "Peltrera Rappresentanze",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Peltrera",
+        "expected": "Peltrera",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Daniele",
+        "expected": "Daniele",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "peltrera.daniele@gmail.com",
+        "expected": "peltrera.daniele@gmail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "345 6503755 (mobile)\n041 5281592 (work)",
+        "expected": "345 6503755\n041 5281592",
+        "ok": false,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Dom. Fisc.: 30034 Borbiago Di Mira (Ve) - Via Trento, Nr. 8/A - 50273",
+        "expected": "Via Trento , 8/A, 30034 Borbiago Di Mira (Ve)",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "04358750273",
+        "expected": "04358750273",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "5d9d484a-dae6-44ed-9999-c013b1b4cd0a": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "S.r.l",
+        "expected": "Gino Carretta S.r.l",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Gino",
+        "expected": "Gino",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Carretta",
+        "expected": "Carretta",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@ginocarretta.com",
+        "expected": "info@ginocarretta.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 348 5656554 (mobile)\n+39 0445 856245 (work)",
+        "expected": "+39 348 5656554 (mobile)\n+39 0445 856245 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.ginocarretta.com",
+        "expected": "www.ginocarretta.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Firenze, 5 - Villaverla (VI) Ltaly, Nr. 5 - Villaverla (vi) Ltaly - VI - IT",
+        "expected": "Via Firenze, 5 - Villaverla (VI) Ltaly, Nr. 5 - Villaverla (VI) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "03658920248",
+        "expected": "03658920248",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "03658920248",
+        "expected": "03658920248",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "36746cbf-ff1a-4da0-9aa8-596390c7c4ab": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "AI - MUKHTAR",
+        "expected": "MUKHTAR",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Khuram",
+        "expected": "Khuram",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Aslam",
+        "expected": "Aslam",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Senior Vice Chairman",
+        "expected": "Senior Vice Chairman",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "-krapk@hotmail.com\nmexports@skt.comsats.net.pk",
+        "expected": "-krapk@hotmail.com\nmexports@skt.comsats.net.pk",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+92 52 3256930 (work)\n+92 52 3256920 (fax)\n92-300-86 13688 (mobile)\n0092-52-426-3688 (work)\n0092-52-426-4803 (fax)",
+        "expected": "+92 52 3256930 (work)\n+92 52 3256920 (fax)\n92-300-86 13688 (mobile)\n0092-52-426-3688 (work)\n0092-52-426-4803 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.skt.comsats.net.pk",
+        "expected": "www.skt.comsats.net.pk",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "60/A Hall Road, S.le",
+        "expected": "47B, Lalazar, Bara Pathar, Near Church\nSialkot - 51310, Punjab - Pakistan",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "0e6e6f63-e016-4913-9eba-b28565036348": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Serenissima Informatica S.p.A",
+        "expected": "Serenissima Informatica S.p.A",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Giuliano",
+        "expected": "Giuliano",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Bonollo",
+        "expected": "Bonollo",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Direttore Divisione Consulting",
+        "expected": "Direttore Divisione Consulting",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "giuliano.bonolo@serinf.it",
+        "expected": "giuliano.bonolo@serinf.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 049 8291111 (work)\n+39 049 8291209 (fax)\n39 348 4415811 (mobile)",
+        "expected": "+39 049 8291111 (work)\n+39 049 8291209 (fax)\n39 348 4415811 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.serinf.it",
+        "expected": "www.serinf.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Croce Rossa, 5 - 35129 Padova Pd - Italy, Nr. 5 - 35129 - Padova Pd - PD - IT",
+        "expected": "Via Croce Rossa, 5 - 35129 Padova Pd - Italy, Nr. 5 - 35129 - Padova Pd - PD - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "01488090281",
+        "expected": "01488090281",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "01488090281",
+        "expected": "01488090281",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "4f8ed233-285e-4efc-ad3d-bce361b6d11b": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Cimabo",
+        "expected": "Cima",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "oscar@cimaschio.it",
+        "expected": "oscar@cimaschio.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 521131 (work)",
+        "expected": "0445 521131 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.cimaschio.it",
+        "expected": "www.cimaschio.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "03978640245",
+        "expected": "03978640245",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "BRTSCR43B23L248B",
+        "expected": "BRTSCR43B23L248B",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "caf19f2c-0b14-4440-865e-63978795a909": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Domo Serramenti",
+        "expected": "Domo Serramenti",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Gennaro",
+        "expected": "Gennaro",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Marra",
+        "expected": "Marra",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@domoserramenti.it",
+        "expected": "info@domoserramenti.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "345 5259790 (mobile)",
+        "expected": "345 5259790 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.domoserramenti.it",
+        "expected": "www.domoserramenti.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Divisione Julia 68 - Thiene (V), Nr. 68 - Thiene (v)",
+        "expected": "Via Divisione Julia 68 - Thiene (V), Nr. 68 - Thiene (VI) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "aad6bf98-1539-4203-90cc-b193595bad80": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Biiker",
+        "expected": "Biiker Sports",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "DIRECTOR",
+        "expected": "Director",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "biikersports@gmail.com",
+        "expected": "biikersports@gmail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+92 300 8618538 (work)",
+        "expected": "+92 300 8618538 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.biiker.com",
+        "expected": "www.biiker.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Ganj Mandi Railway Road Sialkot-pakistan",
+        "expected": "Ganj Mandi Railway Road Sialkot-Pakistan",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "1ba1b5cd-df11-4760-8edf-3e506169e3ba": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "S.r.l",
+        "expected": "GILI CREATIONS S.r.l",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Francesca",
+        "expected": "Francesca",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Gili",
+        "expected": "Gili",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "administra tion manager",
+        "expected": "Administration manager",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "gili@gilicreations.com",
+        "expected": "gili@gilicreations.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 333 2650565 (mobile)\n4018430241 (work)\n+39 444 1510801 (work)",
+        "expected": "+39 333 2650565 (mobile)\n4018430241 (work)\n+39 444 1510801 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.gilicreations.com",
+        "expected": "www.gilicreations.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Veneto, Nr. 10 - 36015 - Schio - VI - IT",
+        "expected": "Via Veneto, Nr. 10 - 36015 - Schio - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "04018430241",
+        "expected": "04018430241",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "04018430241",
+        "expected": "04018430241",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "4ed1d0d7-9ced-45fb-af58-080fc524a13d": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Bicego",
+        "expected": "Bicego",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Delia",
+        "expected": "Delia",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Salviati",
+        "expected": "Salviati",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "responsabile area",
+        "expected": "Responsabile area",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "privati@bicego.it\naziende@bicego.it",
+        "expected": "privati@bicego.it\naziende@bicego.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 0444 341002 (work)",
+        "expected": "+39 0444 341002 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.bicego.it",
+        "expected": "www.bicego.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "1b2683c4-d4b6-4e2e-8013-eeb8daa1cd7d": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Inter-Nos 2 S.a.s. di Rampon Claudio & C",
+        "expected": "Inter-Nos 2 S.a.s. di Rampon Claudio & C",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Claudio",
+        "expected": "Claudio",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Rampon",
+        "expected": "Rampon",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "329.41 99 831 (mobile)\n0445 52 79 79 (work)\n0445 50 53 99 (fax)",
+        "expected": "329.41 99 831 (mobile)\n0445 52 79 79 (work)\n0445 50 53 99 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Vicolo Ottone Calderari, 6/D - 36014 Santorso (VI) - 36014 - Santorso - VI - IT",
+        "expected": "Vicolo Ottone Calderari, 6/D - 36014 Santorso (VI) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "03382750242",
+        "expected": "03382750242",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "ac058537-787c-4c37-99fa-a242e2abbb02": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Discovery Endual S.r.l.s",
+        "expected": "Discovery Endual S.r.l.s",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Pietro",
+        "expected": "Pietro",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Bartolomei",
+        "expected": "Bartolomei",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@discoveryendual.com",
+        "expected": "info@discoveryendual.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "39 335 7315413 (mobile)",
+        "expected": "39 335 7315413 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.discoveryendual.com",
+        "expected": "www.discoveryendual.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Caio', Nr. 16 - 37141 - Verona - VR - IT",
+        "expected": "Via Caio', Nr. 16 - 37141 - Verona - VR - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "04494420237",
+        "expected": "04494420237",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "86ea8864-154e-4ad8-8e16-9ee31e7b1c4c": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Studio Impresa",
+        "expected": "Studio Impresa",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Paolo",
+        "expected": "Paolo",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Piaserico",
+        "expected": "Piaserico",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "paolo.piaserico@studio-impresa.eu",
+        "expected": "paolo.piaserico@studio-impresa.eu",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0444 506177 (work)\n0444 316358 (fax)",
+        "expected": "0444 506177 (work)\n0444 316358 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.studio-impresa.eu",
+        "expected": "www.studio-impresa.eu",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Viale Trieste, Nr. 25/G - 36100 - Vicenza - VI - IT",
+        "expected": "Viale Trieste, Nr. 25/G - 36100 - Vicenza - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "64c6dafc-0650-4dbc-9c9b-78877264d34a": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Sellf S.r.l",
+        "expected": "Sellf S.r.l",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Vanni",
+        "expected": "Vanni",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Potente",
+        "expected": "Potente",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "vanni@sellfapp.com\nhello@sellfapp.com",
+        "expected": "vanni@sellfapp.com\nhello@sellfapp.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 348 255 7373 (mobile)\n+39.0422.789677 (work)\n4608990265 (work)",
+        "expected": "+39 348 255 7373 (mobile)\n+39.0422.789677 (work)\n4608990265 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.sellfapp.com",
+        "expected": "www.sellfapp.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Sile, Nr. 41 - 31056 - Roncade",
+        "expected": "Via Sile, Nr. 41 - 31056 - Roncade - (TV) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "11046089902",
+        "expected": "11046089902",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "4031cf5a-8134-46d3-9508-ab38abe2bb6e": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Monica",
+        "expected": "Monica",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Pimpinato",
+        "expected": "Pimpinato",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "mpimpinato@gmail.com\nmonica.pimpinato@avvocatibassanopec.it",
+        "expected": "mpimpinato@gmail.com\nmonica.pimpinato@avvocatibassanopec.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 0424 194 66 22 (work)\n+39 0424 194 6621 (fax)\n+39 348 958 2580 (mobile)",
+        "expected": "+39 0424 194 66 22 (work)\n+39 0424 194 6621 (fax)\n+39 348 958 2580 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Cunizza Da Romano, Nr. 27 - 36061 - Bassano Del Grappa - VI - IT",
+        "expected": "Via Cunizza Da Romano, Nr. 27 - 36061 - Bassano Del Grappa - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "2aa24554-bf96-42b7-8bde-efc1f158bc1f": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "BIVCE - WTOVCENTIO",
+        "expected": "Banca Alto Vicentino",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Monica",
+        "expected": "Monica",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Bonato",
+        "expected": "Bonato",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "schiosede@bancaaltoricentino.it",
+        "expected": "schiosede@bancaaltoricentino.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445674 000 (work)\n0445 674 500 (fax)",
+        "expected": "0445674 000 (work)\n0445 674 500 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.bancaaltoricentino.it",
+        "expected": "www.bancaaltoricentino.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Pista Dei Veneti, Nr. 14 - 36015 - Schio - VI - IT",
+        "expected": "Via Pista Dei Veneti, Nr. 14 - 36015 - Schio - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "1ae92735-0dbd-4a91-92d8-a763d702ce4f": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Ferri Auto",
+        "expected": "Ferri Auto",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Manuele",
+        "expected": "Manuele",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Gastaldello",
+        "expected": "Gastaldello",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "Venditore Specialist",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "manuele.gastaldello@ferriauto.com",
+        "expected": "manuele.gastaldello@ferriauto.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "345.8108518 (mobile)\n049.8657812 (work)\n049.8657815 (fax)",
+        "expected": "345.8108518 (mobile)\n049.8657812 (work)\n049.8657815 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.ferriauto.com",
+        "expected": "www.ferriauto.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Del Santo, Nr. 193 - 35010 - Limena",
+        "expected": "Via Del Santo, Nr. 193 - 35010 - Limena",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "5cbe41ce-8dfa-4fc6-90af-acb877bafc07": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "MAGIA S.r.l",
+        "expected": "MAGIA S.r.l",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Piergiorgio",
+        "expected": "Piergiorgio",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Asti",
+        "expected": "Asti",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 0434 524390 (work)\n+39 0434 553487 (fax)\n+39 345 10 64 695 (mobile)",
+        "expected": "+39 0434 524390 (work)\n+39 0434 553487 (fax)\n+39 345 10 64 695 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.magia3.it",
+        "expected": "www.magia3.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Viale G. Marconi, Nr. 26/c - 33170 - Pordenone - PN - IT",
+        "expected": "Viale G. Marconi, Nr. 26/c - 33170 - Pordenone - PN - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "53cc77f0-e5a3-4d6b-b832-3049406ea31d": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "Studio Tecnico",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Roberto",
+        "expected": "Roberto",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Danzo",
+        "expected": "Danzo",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Studio Tecnico",
+        "expected": "Geom.",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "roberto-danzo@libero.it",
+        "expected": "roberto-danzo@libero.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 640122 (fax)\n380 3028643 (mobile)",
+        "expected": "0445 640122 (fax)\n380 3028643 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Pozzati - 36014 Santorso (VI) - 36014 - Santorso - VI - IT",
+        "expected": "Via Pozzati - 36014 Santorso (VI) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "686d4c55-e371-4c6d-a91b-b9007dbcacc0": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "INFOOALBERTOMARIOTTO",
+        "expected": "",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Alberto",
+        "expected": "Alberto",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Mariotto",
+        "expected": "Mariotto",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "info@albertomariotto.it",
+        "ok": false,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "347 8165156 (mobile)",
+        "expected": "347 8165156 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.infooalbertomariotto.it",
+        "expected": "www.infooalbertomariotto.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "1e54206b-7fd7-40e8-b65e-8a83663255df": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Amsa International",
+        "expected": "Amsa International",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Abdulrehman",
+        "expected": "Abdulrehman",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Shaukat",
+        "expected": "Shaukat",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Sales Marketing Director",
+        "expected": "Sales Marketing Director",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "amsaeurope@gmail.com",
+        "expected": "amsaeurope@gmail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+44 7780861800 (work)\n+39 351 7962895 (mobile)",
+        "expected": "+44 7780861800 (work)\n+39 351 7962895 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.amsainternational.co",
+        "expected": "www.amsainternational.co",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Wazirabad Road, Rai Pur P.0 Box",
+        "expected": "Wazirabad Road, Rai Pur P.0 Box 2460 - 51310 - Sialkot - Pakistan",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "23929359-be6e-4fee-93c7-e8daaf4211b2": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "SO.FIM. S.r.l",
+        "expected": "SO.F.IM. S.r.l",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Samuele",
+        "expected": "Samuele",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Gasparella",
+        "expected": "Gasparella",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "samuele@sofimsrl.it",
+        "expected": "samuele@sofimsrl.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 0444.1870228 (work)\n+39 0444.1870227 (fax)\n+39 345 4123601 (mobile)",
+        "expected": "+39 0444.1870228 (work)\n+39 0444.1870227 (fax)\n+39 345 4123601 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.sofimsrl.it",
+        "expected": "www.sofimsrl.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via G. Villeneuve, Nr. 11 - 36033 - Sola Vicentina - VI - IT",
+        "expected": "Via G. Villeneuve, Nr. 11 - 36033 - Sola Vicentina - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "02621040241",
+        "expected": "02621040241",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "03924557-15a3-47d4-b3c7-4f58900c561e": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Bfinfissipvc",
+        "expected": "BF di Fleaca",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "bfinfissi@gmail.com",
+        "expected": "bfinfissi@gmail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "347.2147958 (mobile)",
+        "expected": "347.2147958 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.bfinfissipvc.jimdo.com",
+        "expected": "www.bfinfissipvc.jimdo.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Vicolo Valsesia, Nr. 5",
+        "expected": "Vicolo Valsesia, Nr. 5 - Schio - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "53b7d505-0ef9-4fb7-82ff-0cca1d4ad83b": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "B.05 LEDERWAREN HANDELS GMBH",
+        "expected": "B.0.S LEDERWAREN HANDELS GMBH",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Irfan",
+        "expected": "Irfan",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Asghar",
+        "expected": "Asghar",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "irfan.bosmoto@gmail.com",
+        "expected": "irfan.bosmoto@gmail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0049 69 24 24 9218 (work)\n0049 69 24 24 9220 (fax)",
+        "expected": "0049 69 24 24 9218 (work)\n0049 69 24 24 9220 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.motoshop.de",
+        "expected": "www.motoshop.de",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Kruppstrasse, Nr. 138 - 60388 - Frankfurt Am Main Germany. - DE",
+        "expected": "Kruppstrasse, Nr. 138 - 60388 - Frankfurt Am Main Germany. - DE",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "21a766b6-8cde-4985-834f-943d87c7db27": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "PVA GOMME SCHIO Si",
+        "expected": "PVA GOMME SCHIO S.r.l.",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@pivagommeschio.com",
+        "expected": "info@pivagommeschio.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 510748 (work)\n0445 512732 (fax)\n0445 652024 (fax)",
+        "expected": "0445 510748 (work)\n0445 512732 (fax)\n0445 652024 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.pivagommeschio.com",
+        "expected": "www.pivagommeschio.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Dell'industria, Nr. 44",
+        "expected": "Via Dell'industria, Nr. 44 - Schio - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "01797270244",
+        "expected": "01797270244",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "982db872-a364-4698-9855-d0136e0e9eb9": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "AUTOTECHO S.r.l",
+        "expected": "AUTOTECHO S.r.l",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@autotechsrl.it",
+        "expected": "info@autotechsrl.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 510748 (work)\n0445 512732 (fax)",
+        "expected": "0445 510748 (work)\n0445 512732 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.autotechsrl.it",
+        "expected": "www.autotechsrl.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "",
+        "expected": "Via dell'Industria , 44 - 36015 - Schio - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "03876570247",
+        "ok": false,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "659a501f-2aca-4f69-afed-bd31ab3e4e37": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Tuglak Motorbike",
+        "expected": "Tuglak Motorbike",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Ashras",
+        "expected": "Ashraf",
+        "ok": false,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Tuglak",
+        "expected": "Tuglak",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Managing partner",
+        "expected": "Managing partner",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "tuglakmotorbike@gmail.com\ninfo@tuglakmotorbike.com",
+        "expected": "tuglakmotorbike@gmail.com\ninfo@tuglakmotorbike.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+92 321 6150001 (mobile)\n+92 52 3611781 (work)",
+        "expected": "+92 321 6150001 (mobile)\n+92 52 3611781 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.tuglakmotorbike.com",
+        "expected": "www.tuglakmotorbike.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "1Km Aimanabad Road,Tuglak Street, Sialkot-51310 Pakistan. - 51310 - Pakistan.",
+        "expected": "1 Km Aimanabad Road,Tuglak Street, Sialkot-51310 Pakistan",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "bf78eee3-3513-4dbe-8a5c-57d497f9836c": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "ICT-GROUP S.r.l",
+        "expected": "ICT-GROUP S.r.l",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Andrea",
+        "expected": "Andrea",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Frosini",
+        "expected": "Frosini",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Sales Area Manager",
+        "expected": "Sales Area Manager",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "andrea.frosini@ict-group.it",
+        "expected": "andrea.frosini@ict-group.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 335.7750826 (mobile)\n+39 0522.629641 (work)\n+39 0522.629259 (fax)",
+        "expected": "+39 335.7750826 (mobile)\n+39 0522.629641 (work)\n+39 0522.629259 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.ict-group.it",
+        "expected": "www.ict-group.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Cavallotti, Nr. 8 - 42122 - Reggio Emilia - RE - IT",
+        "expected": "Via Cavallotti, Nr. 8 - 42122 - Reggio Emilia - RE - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "02493530352",
+        "expected": "02493530352",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "7249938d-df38-4853-be08-00f53afc62c3": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "CEO - INFODATI S.p.A",
+        "expected": "INFODATI S.p.A",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Fiuppo",
+        "expected": "Fiuppo",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "De Guio",
+        "expected": "De Guio",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "CEO",
+        "expected": "CEO",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@infodati.it",
+        "expected": "info@infodati.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 346 50124 16 (mobile)\n0444 962400 (work)\n0444 962535 (work)",
+        "expected": "+39 346 50124 16 (mobile)\n0444 962400 (work)\n0444 962535 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.infodati.it",
+        "expected": "www.infodati.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Galleria Crispi,5- 36100 Vicenza - 36100 - Vicenza - VI - IT",
+        "expected": "Galleria Crispi,5- 36100 Vicenza - 36100 - Vicenza - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "02075900247",
+        "ok": false,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "d09eaa2e-e587-4f6e-a266-1ac4f573f953": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "ARES di Vendramin Miraldo",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "Miraldo",
+        "ok": false,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "Vendramin",
+        "ok": false,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "aresthiene@libero.it",
+        "expected": "aresthiene@libero.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 386324 (work)\n377 9882916 (mobile)",
+        "expected": "0445 386324 (work)\n377 9882916 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via S. M. Kolbe, 2 - 36016 Thiene (VI), Nr. 2 - 36016 - Thiene - VI - IT",
+        "expected": "Via S. M. Kolbe, 2 - 36016 Thiene (VI) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "d6504300-f0d2-4fc9-b775-d799ac93fdca": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Fluentis",
+        "expected": "Fluentis",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Fabrizio",
+        "expected": "Fabrizio",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Saro",
+        "expected": "Saro",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "General Manager",
+        "expected": "General Manager",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "saro@entis.com\nfabrizio.s@fluentis.com",
+        "expected": "fabrizio.s@fluentis.com",
+        "ok": false,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 329 9032436 (mobile)\n+39 0434 1696346 (work)",
+        "expected": "+39 329 9032436 (mobile)\n+39 0434 1696346 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.fluentis.com",
+        "expected": "www.fluentis.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Mezzomonte, Nr. 24 - 33077 - Sacile - PN - IT",
+        "expected": "Via Mezzomonte, Nr. 24 - 33077 - Sacile - PN - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "fbc3d4cd-efde-45fe-99e9-bc43342c709b": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "EOS GROUP (EOSbio)",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Dario",
+        "expected": "Dario",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Facchini",
+        "expected": "Facchini",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Marketing Monoger",
+        "expected": "Marketing Monoger",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "39 347 991 7897 (mobile)\n39 049 9915554 (mobile)\n39 049 9919469 (fax)",
+        "expected": "39 347 991 7897 (mobile)\n39 049 9915554 (mobile)\n39 049 9919469 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Sede Operativa Via Fossona, Nr. 7/A",
+        "expected": "Via Fossona, Nr. 7/A - 35030 - Cervarese S. Croce - PD - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "2cfe8389-3542-4593-98d6-cdcde1a92948": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Giancarlo",
+        "expected": "Giancarlo",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Turetta",
+        "expected": "Turetta",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "Posatore",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "interbus66@tin.it",
+        "expected": "interbus66@tin.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "328.21.92.117 (mobile)\n0445.50.00.46 (fax)",
+        "expected": "328.21.92.117 (mobile)\n0445.50.00.46 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via E. Gregori, Nr. 7 - 36015 - Schio Vi - VI - IT",
+        "expected": "Via E. Gregori, Nr. 7 - 36015 - Schio Vi - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "03011170242",
+        "ok": false,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "52379ff3-3618-41dd-8111-6bda1f2fa2fc": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "Massimo",
+        "ok": false,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "Sberze",
+        "ok": false,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 606484 (fax)",
+        "expected": "0445 606484 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Maistri, I - 36030 Monte - 36030 - Monte - Cell. 339-57+91t9296",
+        "expected": "Via Maistri, I - 36030 Monte - 36030 - Monte - Cell. 339-57+91t9296",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "02969340245",
+        "expected": "02969340245",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "74L20E864T",
+        "ok": false,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "1c63ed5b-2509-4e1e-8f3a-244594746e08": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "WISE",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Pesenti",
+        "expected": "Pesenti",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Alessandro",
+        "expected": "Alessandro",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Software Solutions Manager",
+        "expected": "Software Solutions Manager",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "pesenti.alessandro@wiseingegneria.it",
+        "expected": "pesenti.alessandro@wiseingegneria.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 349.6537850 (mobile)\n+39 035.19966714 (work)\n+39 035.4540966 (fax)",
+        "expected": "+39 349.6537850 (mobile)\n+39 035.19966714 (work)\n+39 035.4540966 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.wiseingegneria.it",
+        "expected": "www.wiseingegneria.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "24060 Brusaporto (BG) Italy E Soluzioni Software S.r.l. - 24060 - Brusaporto - BG - IT",
+        "expected": "Via Artigiani , 22 - 24060 - Brusaporto - BG - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "e2558213-9d95-4bd2-9d2f-3694fd305977": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "IIRA - LIRA S.r.l",
+        "expected": "LIRA S.r.l",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Diego",
+        "expected": "Diego",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Torre",
+        "expected": "Torre",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "02 4451 031 (work)\n+39 2 4451031 (work)\n02 4450932 (fax)",
+        "expected": "02 4451 031 (work)\n+39 2 4451031 (work)\n02 4450932 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via San Cristoforo, Nr. 74 - 20090 - Trezzano Sul Naviglio",
+        "expected": "Via San Cristoforo, Nr. 74 - 20090 - Trezzano Sul Naviglio MI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "09570630153",
+        "expected": "09570630153",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "4e10a341-e765-4022-bbe1-f84af1cd71f1": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Filippi Serramenti",
+        "expected": "Filippi Serramenti",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@filippiserramenti.it",
+        "expected": "info@filippiserramenti.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445672872 (work)",
+        "expected": "0445672872 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.filippiserramenti.it",
+        "expected": "www.filippiserramenti.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "V'ia Belfiore, Nr. 10 - 36015 - Schio - VI - IT",
+        "expected": "V'ia Belfiore, Nr. 10 - 36015 - Schio - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "d222c629-f7eb-4d73-80d8-5bbeb832dde7": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "ECO-SABBIATURA S.n.c",
+        "expected": "ECO-SABBIATURA S.n.c",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Erik",
+        "expected": "Erik",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Rizzo",
+        "expected": "Rizzo",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "rizzo@sabbiatura.it\ninfo@ecosabbiatura.it",
+        "expected": "rizzo@sabbiatura.it\ninfo@ecosabbiatura.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "335 25 92 82 (mobile)\n0444.590013 (fax)",
+        "expected": "335 25 92 82 (mobile)\n0444.590013 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.ecosabbiatura.it",
+        "expected": "www.ecosabbiatura.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "36031 Dueville (VI) Via Corvo, Nr. 85 - 36031 - Dueville - VI - IT",
+        "expected": "36031 Dueville (VI) Via Corvo, Nr. 85 - 36031 - Dueville - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "02685020246",
+        "expected": "02685020246",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "02685020246",
+        "expected": "02685020246",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "0623012e-6ba6-42f8-ae4c-02579cfe91e1": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Mongodb",
+        "expected": "Mongodb",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Luca",
+        "expected": "Luca",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Olivarimongodb Com",
+        "expected": "Olivari",
+        "ok": false,
+        "cause": ""
+      },
+      "role": {
+        "actual": "title : \"Director, Business Dev. & Strategy",
+        "expected": "Director, Business Dev. & Strategy",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "olivari@mongodb.com",
+        "expected": "olivari@mongodb.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "439.331.5495.292 (work)",
+        "expected": "439.331.5495.292 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.mongodb.com",
+        "expected": "www.mongodb.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "df847197-e3a7-411a-aa89-3f79d807d462": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "FC S.a.s",
+        "expected": "FC S.a.s",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Carmelo",
+        "expected": "Carmelo",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Giacchi",
+        "expected": "Giacchi",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "giacchi@gmail.com\nfcschio@gmail.com",
+        "expected": "giacchi@gmail.com\nfcschio@gmail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "347 4620345 (mobile)\n0445 575919 (work)\n0445 577519 (fax)",
+        "expected": "347 4620345 (mobile)\n0445 575919 (work)\n0445 577519 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Baccarini, Nr. 39 - 36015 - Schio - VI - IT",
+        "expected": "Via Baccarini, Nr. 39 - 36015 - Schio - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "03800440244",
+        "expected": "03800440244",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "9b143f87-e2c2-43d5-978b-c68450146164": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Up Trail",
+        "expected": "Up Trail",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "hello@up-trail.com",
+        "expected": "hello@up-trail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 059 580 2780 (work)\n+39 392 534 3674 (mobile)",
+        "expected": "+39 059 580 2780 (work)\n+39 392 534 3674 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.up-trail.com",
+        "expected": "www.up-trail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Lorenzo Perosi, Nr. 71 - 41122 - Modena - MO - IT",
+        "expected": "Via Lorenzo Perosi, Nr. 71 - 41122 - Modena - MO - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "f25286c9-08b8-41a5-9c87-6c8fb9b3b7e3": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Sisalp",
+        "expected": "Sisalp",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Dominique",
+        "expected": "Dominique",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Chabord",
+        "expected": "Chabord",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "Consultant",
+        "expected": "Consultant",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "dominique.chabord@sisalp.org",
+        "expected": "dominique.chabord@sisalp.org",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+33 (0)870 274 960 (work)\n+33 (0)622 616 438 (work)",
+        "expected": "+33 (0)870 274 960 (work)\n+33 (0)622 616 438 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.sisalp.org",
+        "expected": "www.sisalp.org",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "18 Avenue Beauregard - 74960 - Cran Gevrier",
+        "expected": "18 Avenue Beauregard - F-74960 - Cran Gevrier",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "4ccb309f-7995-4da9-96c8-6aee67cf90ad": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Davide",
+        "expected": "Davide",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Piva",
+        "expected": "Piva",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "informatica.dvd@gmail.com",
+        "expected": "informatica.dvd@gmail.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39.368.3585350 (work)",
+        "expected": "+39.368.3585350 (work)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Collegio, 1 -36011 Arsiero (VI) - 36011 - Arsiero - VI - IT",
+        "expected": "Via Collegio, 1 -36011 Arsiero (VI) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "04006080248",
+        "expected": "04006080248",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "e0daa4d3-a355-48cd-aaeb-8587e2528e34": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Bnova",
+        "expected": "Bnova",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Serena",
+        "expected": "Serena",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Arrighi",
+        "expected": "Arrighi",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "serena.arrighi@bnova.it",
+        "expected": "serena.arrighi@bnova.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 347 6453163 (mobile)\n+39 0585 842210 (work)\n+39 0585 847107 (fax)",
+        "expected": "+39 347 6453163 (mobile)\n+39 0585 842210 (work)\n+39 0585 847107 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.bnova.it",
+        "expected": "www.bnova.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Silicani, Nr. 2 - 54033 - Carrara - MS - IT",
+        "expected": "Via Silicani, Nr. 2 - 54033 - Carrara - MS - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "808f3d77-6919-4ed8-a2ce-e37d8fbb9e10": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Pivesso",
+        "expected": "Pivesso",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 123619886 (fax)",
+        "expected": "+39 123619886 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.pivesso.com",
+        "expected": "www.pivesso.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Vicolo Boccacavalla. 10-31040 Biadene Di Montebelluna (TV) - 31040 - Biadene Di Montebelluna - TV - IT",
+        "expected": "Vicolo Boccacavalla. 10-31040 Biadene Di Montebelluna (TV) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "672bf4f5-eb03-4d6a-ae28-361ede6e84dd": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "4BELLOTTO",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "bellotto@email.it",
+        "expected": "bellotto@email.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 66.11.60 (work)\n0445 29.45.55 (fax)",
+        "expected": "0445 66.11.60 (work)\n0445 29.45.55 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Sede Operativa: Viale Dell'industria, Nr. 27 - 36036 - Torrebelvicino - VI - IT",
+        "expected": "Sede Operativa: Viale Dell'industria, Nr. 27 - 36036 - Torrebelvicino - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "70bddb64-8748-4bea-873f-23cb792cfdcb": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Kblue sr",
+        "expected": "Kblue sr",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Carlo",
+        "expected": "Carlo",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Foletto",
+        "expected": "Foletto",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "sales dept",
+        "expected": "Sales dept",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "346.3984314 (mobile)\n+39 0445 315055 (work)\n+39 0445 315424 (fax)",
+        "expected": "346.3984314 (mobile)\n+39 0445 315055 (work)\n+39 0445 315424 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.kblue.it",
+        "expected": "www.kblue.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Prà Bordoni, Nr. 12 - 36010 - Zanè Vi - VI - IT",
+        "expected": "Via Prà Bordoni, Nr. 12 - 36010 - Zanè - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "0b5e7bc6-48e8-4998-bba9-77f8138eadcb": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "La Bussola Progettazione d'Interni",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "schiobussola@tiscali.it\nschiobussola@lamiapec.it",
+        "expected": "schiobussola@tiscali.it\nschiobussola@lamiapec.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445575710 (work)\n0445 1743146 (fax)",
+        "expected": "0445575710 (work)\n0445 1743146 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Lago Di GARDA, 88 - 36015 Schio (VI), Nr. 88 - 36015 - Schio - VI - IT",
+        "expected": "Via Lago Di GARDA, 88 - 36015 Schio - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "194fc9f9-6946-4eda-87f1-7214624f2865": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "",
+        "expected": "Garbin & Maule",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Michela",
+        "expected": "Michela",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Maule",
+        "expected": "Maule",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 53.00.88 (work)\n0445 52.67.32 (fax)",
+        "expected": "0445 53.00.88 (work)\n0445 52.67.32 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Vicolo Tessitori, 15-36015 Schio (V) - 36015 - Schio - VI - IT",
+        "expected": "Vicolo Tessitori, 15-36015 Schio - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "02700130244",
+        "ok": false,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "6d821c2b-dbe4-47b3-b542-a6a2d8b333b3": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Gasparotto Bruno & Figli S.a.s",
+        "expected": "Gasparotto Bruno & Figli S.a.s",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Angela",
+        "expected": "Angela",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Maria Pia Laurano",
+        "expected": "Maria Pia Laurano",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "Sub agente assicurativo",
+        "ok": false,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "3@gmail.com",
+        "expected": "angelalaurano3@gmail.com",
+        "ok": false,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "0445 530633 (fax)\n348 5236762 (fax)",
+        "expected": "0445 530633 (fax)\n348 5236762 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Viale Santa Croce, 47- Schio (VI) - 0445 - 0445 - VI - IT",
+        "expected": "Viale Santa Croce, 47- Schio - (VI) - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "139d81b4-561b-48b0-8f7a-2895eb238e9a": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "FULL",
+        "expected": "FULL PROJECT LIVING",
+        "ok": false,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@fplarreda.com",
+        "expected": "info@fplarreda.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 0445 316000 (work)\n+39 0445 316090 (work)\n3264520242 (mobile)",
+        "expected": "+39 0445 316000 (work)\n+39 0445 316090 (work)\n3264520242 (mobile)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.fplarreda.com",
+        "expected": "www.fplarreda.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "A Via Prà Bordoni, Nr. 67 - 36010 - Zanè - VI - IT",
+        "expected": "A Via Prà Bordoni, Nr. 67 - 36010 - Zanè - VI - IT",
+        "ok": true,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "03264520242",
+        "ok": false,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "34c212e3-d581-4799-99e8-67c60a11e9d3": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "Diquigiovanni",
+        "expected": "Diquigiovanni",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "Sergio",
+        "expected": "Sergio",
+        "ok": true,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "Battagion",
+        "expected": "Battagion",
+        "ok": true,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "battagion69@gmail.com\ninfo@diquigiovanni.com",
+        "expected": "battagion69@gmail.com\ninfo@diquigiovanni.com",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "39 335 6080592 (mobile)\n39 0445 941400 (mobile)\n+39 0445 940413 (fax)",
+        "expected": "39 335 6080592 (mobile)\n39 0445 941400 (mobile)\n+39 0445 940413 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.diquigiovanni.com",
+        "expected": "www.diquigiovanni.com",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Palazzetto, Nr. 1/A - 36070",
+        "expected": "Via Palazzetto, Nr. 1/A - 36070 - CASTELGOMBERTO - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  },
+  "ec0cdcc3-7031-4fc0-8eb3-4e60130c223c": {
+    "status": "open",
+    "overallCause": "",
+    "comment": "",
+    "fields": {
+      "company": {
+        "actual": "D.F. Interni di De Franceschi Luigi & C. S.a.s",
+        "expected": "D.F. Interni di De Franceschi Luigi & C. S.a.s",
+        "ok": true,
+        "cause": ""
+      },
+      "firstName": {
+        "actual": "",
+        "expected": "Luigi",
+        "ok": false,
+        "cause": ""
+      },
+      "lastName": {
+        "actual": "",
+        "expected": "De Franceschi",
+        "ok": false,
+        "cause": ""
+      },
+      "role": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      },
+      "emails": {
+        "actual": "info@dieffeinterni.it",
+        "expected": "info@dieffeinterni.it",
+        "ok": true,
+        "cause": ""
+      },
+      "phones": {
+        "actual": "+39 340 4956821 (mobile)\n0445 517717 (fax)",
+        "expected": "+39 340 4956821 (mobile)\n0445 517717 (fax)",
+        "ok": true,
+        "cause": ""
+      },
+      "website": {
+        "actual": "www.dieffeinterni.it",
+        "expected": "www.dieffeinterni.it",
+        "ok": true,
+        "cause": ""
+      },
+      "address": {
+        "actual": "Via Campagnola 21D - 36015 Schio (V), Nr. 21D - 36015 - Schio - VI - IT",
+        "expected": "Via Campagnola 21D - 36015 Schio - VI - IT",
+        "ok": false,
+        "cause": ""
+      },
+      "vatNumber": {
+        "actual": "03930900240",
+        "expected": "03930900240",
+        "ok": true,
+        "cause": ""
+      },
+      "taxCode": {
+        "actual": "03930900240",
+        "expected": "03930900240",
+        "ok": true,
+        "cause": ""
+      },
+      "notes": {
+        "actual": "",
+        "expected": "",
+        "ok": true,
+        "cause": ""
+      }
+    }
+  }
+}

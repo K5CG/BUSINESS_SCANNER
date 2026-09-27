@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "tests/contact-deduplication.test.ts",
+    "tests/contact-duplicate-resolution.test.ts",
+    "tests/contact-duplicate-prompt.test.ts",
+    "tests/contact-duplicate-save-flow.integration.test.ts",
+    "tests/stubs/react-native-alert-stub.ts",
+    "lib/duplicate-contacts-core.ts",
+    "lib/contact-duplicate-resolution.ts",
+    "lib/contact-update-precondition.ts",
+    "lib/duplicate-contacts.ts",
+    "lib/duplicate-contact-guard.ts",
+    "store/useContactStore.ts",
+    "types/**/*.ts"
+  ]
+}

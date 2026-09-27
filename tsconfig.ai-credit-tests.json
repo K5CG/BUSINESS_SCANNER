@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "tests/ai-credit-security.test.ts",
+    "tests/ai-credit-durable-ledger.test.ts",
+    "lib/ai-credit/**/*.ts",
+    "lib/document-ai-credits.ts",
+    "supabase/functions/_shared/ai-credit-edge.ts",
+    "supabase/functions/_shared/card-structure.ts",
+    "supabase/functions/_shared/gemini-extract.ts"
+  ]
+}

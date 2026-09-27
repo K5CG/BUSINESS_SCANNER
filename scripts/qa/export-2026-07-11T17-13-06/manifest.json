@@ -1,0 +1,517 @@
+{
+  "exportedAt": "2026-07-11T17:13:06.395Z",
+  "contactCount": 54,
+  "files": {
+    "csv": "contacts.csv",
+    "json": "contacts.json",
+    "readme": "README_QA.txt",
+    "imagesDir": "images/"
+  },
+  "contacts": [
+    {
+      "id": "34c212e3-d581-4799-99e8-67c60a11e9d3",
+      "title": "Diquigiovanni - Sergio Battagion",
+      "cardImageFiles": [
+        "images/34c212e3-d581-4799-99e8-67c60a11e9d3_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/34c212e3-d581-4799-99e8-67c60a11e9d3.txt"
+    },
+    {
+      "id": "139d81b4-561b-48b0-8f7a-2895eb238e9a",
+      "title": "FULL",
+      "cardImageFiles": [
+        "images/139d81b4-561b-48b0-8f7a-2895eb238e9a_front_1.jpg",
+        "images/139d81b4-561b-48b0-8f7a-2895eb238e9a_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/139d81b4-561b-48b0-8f7a-2895eb238e9a.txt"
+    },
+    {
+      "id": "6d821c2b-dbe4-47b3-b542-a6a2d8b333b3",
+      "title": "Gasparotto Bruno & Figli S.a.s - Angela Maria Pia Laurano",
+      "cardImageFiles": [
+        "images/6d821c2b-dbe4-47b3-b542-a6a2d8b333b3_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/6d821c2b-dbe4-47b3-b542-a6a2d8b333b3.txt"
+    },
+    {
+      "id": "194fc9f9-6946-4eda-87f1-7214624f2865",
+      "title": "Michela Maule",
+      "cardImageFiles": [
+        "images/194fc9f9-6946-4eda-87f1-7214624f2865_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/194fc9f9-6946-4eda-87f1-7214624f2865.txt"
+    },
+    {
+      "id": "0b5e7bc6-48e8-4998-bba9-77f8138eadcb",
+      "title": "PROGETTAZIONE DINTERNI",
+      "cardImageFiles": [
+        "images/0b5e7bc6-48e8-4998-bba9-77f8138eadcb_front_1.jpg",
+        "images/0b5e7bc6-48e8-4998-bba9-77f8138eadcb_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/0b5e7bc6-48e8-4998-bba9-77f8138eadcb.txt"
+    },
+    {
+      "id": "70bddb64-8748-4bea-873f-23cb792cfdcb",
+      "title": "Kblue sr - Carlo Foletto",
+      "cardImageFiles": [
+        "images/70bddb64-8748-4bea-873f-23cb792cfdcb_front_1.jpg",
+        "images/70bddb64-8748-4bea-873f-23cb792cfdcb_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/70bddb64-8748-4bea-873f-23cb792cfdcb.txt"
+    },
+    {
+      "id": "672bf4f5-eb03-4d6a-ae28-361ede6e84dd",
+      "title": "Biglietto da visita",
+      "cardImageFiles": [
+        "images/672bf4f5-eb03-4d6a-ae28-361ede6e84dd_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/672bf4f5-eb03-4d6a-ae28-361ede6e84dd.txt"
+    },
+    {
+      "id": "808f3d77-6919-4ed8-a2ce-e37d8fbb9e10",
+      "title": "Pivesso",
+      "cardImageFiles": [
+        "images/808f3d77-6919-4ed8-a2ce-e37d8fbb9e10_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/808f3d77-6919-4ed8-a2ce-e37d8fbb9e10.txt"
+    },
+    {
+      "id": "e0daa4d3-a355-48cd-aaeb-8587e2528e34",
+      "title": "Bnova - Serena Arrighi",
+      "cardImageFiles": [
+        "images/e0daa4d3-a355-48cd-aaeb-8587e2528e34_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/e0daa4d3-a355-48cd-aaeb-8587e2528e34.txt"
+    },
+    {
+      "id": "4ccb309f-7995-4da9-96c8-6aee67cf90ad",
+      "title": "Davide Piva",
+      "cardImageFiles": [
+        "images/4ccb309f-7995-4da9-96c8-6aee67cf90ad_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/4ccb309f-7995-4da9-96c8-6aee67cf90ad.txt"
+    },
+    {
+      "id": "f25286c9-08b8-41a5-9c87-6c8fb9b3b7e3",
+      "title": "Sisalp - Dominique Chabord",
+      "cardImageFiles": [
+        "images/f25286c9-08b8-41a5-9c87-6c8fb9b3b7e3_front_1.jpg",
+        "images/f25286c9-08b8-41a5-9c87-6c8fb9b3b7e3_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/f25286c9-08b8-41a5-9c87-6c8fb9b3b7e3.txt"
+    },
+    {
+      "id": "9b143f87-e2c2-43d5-978b-c68450146164",
+      "title": "Up Trail",
+      "cardImageFiles": [
+        "images/9b143f87-e2c2-43d5-978b-c68450146164_front_1.jpg",
+        "images/9b143f87-e2c2-43d5-978b-c68450146164_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/9b143f87-e2c2-43d5-978b-c68450146164.txt"
+    },
+    {
+      "id": "df847197-e3a7-411a-aa89-3f79d807d462",
+      "title": "FC S.a.s - Carmelo Giacchi",
+      "cardImageFiles": [
+        "images/df847197-e3a7-411a-aa89-3f79d807d462_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/df847197-e3a7-411a-aa89-3f79d807d462.txt"
+    },
+    {
+      "id": "0623012e-6ba6-42f8-ae4c-02579cfe91e1",
+      "title": "Mongodb - Luca Olivarimongodb Com",
+      "cardImageFiles": [
+        "images/0623012e-6ba6-42f8-ae4c-02579cfe91e1_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/0623012e-6ba6-42f8-ae4c-02579cfe91e1.txt"
+    },
+    {
+      "id": "d222c629-f7eb-4d73-80d8-5bbeb832dde7",
+      "title": "ECO-SABBIATURA S.n.c - Erik Rizzo",
+      "cardImageFiles": [
+        "images/d222c629-f7eb-4d73-80d8-5bbeb832dde7_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/d222c629-f7eb-4d73-80d8-5bbeb832dde7.txt"
+    },
+    {
+      "id": "4e10a341-e765-4022-bbe1-f84af1cd71f1",
+      "title": "Filippi Serramenti",
+      "cardImageFiles": [
+        "images/4e10a341-e765-4022-bbe1-f84af1cd71f1_front_1.jpg",
+        "images/4e10a341-e765-4022-bbe1-f84af1cd71f1_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/4e10a341-e765-4022-bbe1-f84af1cd71f1.txt"
+    },
+    {
+      "id": "e2558213-9d95-4bd2-9d2f-3694fd305977",
+      "title": "IIRA - LIRA S.r.l - Diego Torre",
+      "cardImageFiles": [
+        "images/e2558213-9d95-4bd2-9d2f-3694fd305977_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/e2558213-9d95-4bd2-9d2f-3694fd305977.txt"
+    },
+    {
+      "id": "1c63ed5b-2509-4e1e-8f3a-244594746e08",
+      "title": "Pesenti Alessandro",
+      "cardImageFiles": [
+        "images/1c63ed5b-2509-4e1e-8f3a-244594746e08_front_1.jpg",
+        "images/1c63ed5b-2509-4e1e-8f3a-244594746e08_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/1c63ed5b-2509-4e1e-8f3a-244594746e08.txt"
+    },
+    {
+      "id": "52379ff3-3618-41dd-8111-6bda1f2fa2fc",
+      "title": "Biglietto da visita",
+      "cardImageFiles": [
+        "images/52379ff3-3618-41dd-8111-6bda1f2fa2fc_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/52379ff3-3618-41dd-8111-6bda1f2fa2fc.txt"
+    },
+    {
+      "id": "2cfe8389-3542-4593-98d6-cdcde1a92948",
+      "title": "Giancarlo Turetta",
+      "cardImageFiles": [
+        "images/2cfe8389-3542-4593-98d6-cdcde1a92948_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/2cfe8389-3542-4593-98d6-cdcde1a92948.txt"
+    },
+    {
+      "id": "fbc3d4cd-efde-45fe-99e9-bc43342c709b",
+      "title": "Dario Facchini",
+      "cardImageFiles": [
+        "images/fbc3d4cd-efde-45fe-99e9-bc43342c709b_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/fbc3d4cd-efde-45fe-99e9-bc43342c709b.txt"
+    },
+    {
+      "id": "d6504300-f0d2-4fc9-b775-d799ac93fdca",
+      "title": "Fluentis - Fabrizio Saro",
+      "cardImageFiles": [
+        "images/d6504300-f0d2-4fc9-b775-d799ac93fdca_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/d6504300-f0d2-4fc9-b775-d799ac93fdca.txt"
+    },
+    {
+      "id": "d09eaa2e-e587-4f6e-a266-1ac4f573f953",
+      "title": "Biglietto da visita",
+      "cardImageFiles": [
+        "images/d09eaa2e-e587-4f6e-a266-1ac4f573f953_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/d09eaa2e-e587-4f6e-a266-1ac4f573f953.txt"
+    },
+    {
+      "id": "7249938d-df38-4853-be08-00f53afc62c3",
+      "title": "INFODATI S.p.A - Fiuppo De Guio",
+      "cardImageFiles": [
+        "images/7249938d-df38-4853-be08-00f53afc62c3_front_1.jpg",
+        "images/7249938d-df38-4853-be08-00f53afc62c3_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/7249938d-df38-4853-be08-00f53afc62c3.txt"
+    },
+    {
+      "id": "bf78eee3-3513-4dbe-8a5c-57d497f9836c",
+      "title": "ICT-GROUP S.r.l - Andrea Frosini",
+      "cardImageFiles": [
+        "images/bf78eee3-3513-4dbe-8a5c-57d497f9836c_front_1.jpg",
+        "images/bf78eee3-3513-4dbe-8a5c-57d497f9836c_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/bf78eee3-3513-4dbe-8a5c-57d497f9836c.txt"
+    },
+    {
+      "id": "659a501f-2aca-4f69-afed-bd31ab3e4e37",
+      "title": "Tuglak Motorbike - Ashras Tuglak",
+      "cardImageFiles": [
+        "images/659a501f-2aca-4f69-afed-bd31ab3e4e37_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/659a501f-2aca-4f69-afed-bd31ab3e4e37.txt"
+    },
+    {
+      "id": "982db872-a364-4698-9855-d0136e0e9eb9",
+      "title": "AUTOTECHO S.r.l",
+      "cardImageFiles": [
+        "images/982db872-a364-4698-9855-d0136e0e9eb9_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/982db872-a364-4698-9855-d0136e0e9eb9.txt"
+    },
+    {
+      "id": "21a766b6-8cde-4985-834f-943d87c7db27",
+      "title": "PVA GOMME SCHIO Si",
+      "cardImageFiles": [
+        "images/21a766b6-8cde-4985-834f-943d87c7db27_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/21a766b6-8cde-4985-834f-943d87c7db27.txt"
+    },
+    {
+      "id": "53b7d505-0ef9-4fb7-82ff-0cca1d4ad83b",
+      "title": "B.05 LEDERWAREN HANDELS GMBH - Irfan Asghar",
+      "cardImageFiles": [
+        "images/53b7d505-0ef9-4fb7-82ff-0cca1d4ad83b_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/53b7d505-0ef9-4fb7-82ff-0cca1d4ad83b.txt"
+    },
+    {
+      "id": "03924557-15a3-47d4-b3c7-4f58900c561e",
+      "title": "Bfinfissipvc",
+      "cardImageFiles": [
+        "images/03924557-15a3-47d4-b3c7-4f58900c561e_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/03924557-15a3-47d4-b3c7-4f58900c561e.txt"
+    },
+    {
+      "id": "23929359-be6e-4fee-93c7-e8daaf4211b2",
+      "title": "SO.FIM. S.r.l - Samuele Gasparella",
+      "cardImageFiles": [
+        "images/23929359-be6e-4fee-93c7-e8daaf4211b2_front_1.jpg",
+        "images/23929359-be6e-4fee-93c7-e8daaf4211b2_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/23929359-be6e-4fee-93c7-e8daaf4211b2.txt"
+    },
+    {
+      "id": "1e54206b-7fd7-40e8-b65e-8a83663255df",
+      "title": "Amsa International - Abdulrehman Shaukat",
+      "cardImageFiles": [
+        "images/1e54206b-7fd7-40e8-b65e-8a83663255df_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/1e54206b-7fd7-40e8-b65e-8a83663255df.txt"
+    },
+    {
+      "id": "686d4c55-e371-4c6d-a91b-b9007dbcacc0",
+      "title": "INFOOALBERTOMARIOTTO - Alberto Mariotto",
+      "cardImageFiles": [
+        "images/686d4c55-e371-4c6d-a91b-b9007dbcacc0_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/686d4c55-e371-4c6d-a91b-b9007dbcacc0.txt"
+    },
+    {
+      "id": "53cc77f0-e5a3-4d6b-b832-3049406ea31d",
+      "title": "Roberto Danzo",
+      "cardImageFiles": [
+        "images/53cc77f0-e5a3-4d6b-b832-3049406ea31d_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/53cc77f0-e5a3-4d6b-b832-3049406ea31d.txt"
+    },
+    {
+      "id": "5cbe41ce-8dfa-4fc6-90af-acb877bafc07",
+      "title": "MAGIA S.r.l - Piergiorgio Asti",
+      "cardImageFiles": [
+        "images/5cbe41ce-8dfa-4fc6-90af-acb877bafc07_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/5cbe41ce-8dfa-4fc6-90af-acb877bafc07.txt"
+    },
+    {
+      "id": "1ae92735-0dbd-4a91-92d8-a763d702ce4f",
+      "title": "Ferri Auto - Manuele Gastaldello",
+      "cardImageFiles": [
+        "images/1ae92735-0dbd-4a91-92d8-a763d702ce4f_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/1ae92735-0dbd-4a91-92d8-a763d702ce4f.txt"
+    },
+    {
+      "id": "2aa24554-bf96-42b7-8bde-efc1f158bc1f",
+      "title": "BIVCE - WTOVCENTIO - Monica Bonato",
+      "cardImageFiles": [
+        "images/2aa24554-bf96-42b7-8bde-efc1f158bc1f_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/2aa24554-bf96-42b7-8bde-efc1f158bc1f.txt"
+    },
+    {
+      "id": "4031cf5a-8134-46d3-9508-ab38abe2bb6e",
+      "title": "Monica Pimpinato",
+      "cardImageFiles": [
+        "images/4031cf5a-8134-46d3-9508-ab38abe2bb6e_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/4031cf5a-8134-46d3-9508-ab38abe2bb6e.txt"
+    },
+    {
+      "id": "64c6dafc-0650-4dbc-9c9b-78877264d34a",
+      "title": "Sellf S.r.l - Vanni Potente",
+      "cardImageFiles": [
+        "images/64c6dafc-0650-4dbc-9c9b-78877264d34a_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/64c6dafc-0650-4dbc-9c9b-78877264d34a.txt"
+    },
+    {
+      "id": "86ea8864-154e-4ad8-8e16-9ee31e7b1c4c",
+      "title": "Studio Impresa - Paolo Piaserico",
+      "cardImageFiles": [
+        "images/86ea8864-154e-4ad8-8e16-9ee31e7b1c4c_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/86ea8864-154e-4ad8-8e16-9ee31e7b1c4c.txt"
+    },
+    {
+      "id": "ac058537-787c-4c37-99fa-a242e2abbb02",
+      "title": "Discovery Endual S.r.l.s - Pietro Bartolomei",
+      "cardImageFiles": [
+        "images/ac058537-787c-4c37-99fa-a242e2abbb02_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/ac058537-787c-4c37-99fa-a242e2abbb02.txt"
+    },
+    {
+      "id": "1b2683c4-d4b6-4e2e-8013-eeb8daa1cd7d",
+      "title": "Inter-Nos 2 S.a.s. di Rampon Claudio & C - Claudio Rampon",
+      "cardImageFiles": [
+        "images/1b2683c4-d4b6-4e2e-8013-eeb8daa1cd7d_front_1.jpg",
+        "images/1b2683c4-d4b6-4e2e-8013-eeb8daa1cd7d_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/1b2683c4-d4b6-4e2e-8013-eeb8daa1cd7d.txt"
+    },
+    {
+      "id": "4ed1d0d7-9ced-45fb-af58-080fc524a13d",
+      "title": "Bicego - Delia Salviati",
+      "cardImageFiles": [
+        "images/4ed1d0d7-9ced-45fb-af58-080fc524a13d_front_1.jpg",
+        "images/4ed1d0d7-9ced-45fb-af58-080fc524a13d_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/4ed1d0d7-9ced-45fb-af58-080fc524a13d.txt"
+    },
+    {
+      "id": "1ba1b5cd-df11-4760-8edf-3e506169e3ba",
+      "title": "GILI CREATIONS S.r.l - Francesca Gili",
+      "cardImageFiles": [
+        "images/1ba1b5cd-df11-4760-8edf-3e506169e3ba_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/1ba1b5cd-df11-4760-8edf-3e506169e3ba.txt"
+    },
+    {
+      "id": "aad6bf98-1539-4203-90cc-b193595bad80",
+      "title": "Biiker",
+      "cardImageFiles": [
+        "images/aad6bf98-1539-4203-90cc-b193595bad80_front_1.jpg",
+        "images/aad6bf98-1539-4203-90cc-b193595bad80_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/aad6bf98-1539-4203-90cc-b193595bad80.txt"
+    },
+    {
+      "id": "caf19f2c-0b14-4440-865e-63978795a909",
+      "title": "Domo Serramenti - Gennaro Marra",
+      "cardImageFiles": [
+        "images/caf19f2c-0b14-4440-865e-63978795a909_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/caf19f2c-0b14-4440-865e-63978795a909.txt"
+    },
+    {
+      "id": "4f8ed233-285e-4efc-ad3d-bce361b6d11b",
+      "title": "Cimabo",
+      "cardImageFiles": [
+        "images/4f8ed233-285e-4efc-ad3d-bce361b6d11b_front_1.jpg",
+        "images/4f8ed233-285e-4efc-ad3d-bce361b6d11b_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/4f8ed233-285e-4efc-ad3d-bce361b6d11b.txt"
+    },
+    {
+      "id": "0e6e6f63-e016-4913-9eba-b28565036348",
+      "title": "Serenissima Informatica S.p.A - Giuliano Bonollo",
+      "cardImageFiles": [
+        "images/0e6e6f63-e016-4913-9eba-b28565036348_front_1.jpg",
+        "images/0e6e6f63-e016-4913-9eba-b28565036348_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/0e6e6f63-e016-4913-9eba-b28565036348.txt"
+    },
+    {
+      "id": "36746cbf-ff1a-4da0-9aa8-596390c7c4ab",
+      "title": "AI - MUKHTAR - Khuram Aslam",
+      "cardImageFiles": [
+        "images/36746cbf-ff1a-4da0-9aa8-596390c7c4ab_front_1.jpg",
+        "images/36746cbf-ff1a-4da0-9aa8-596390c7c4ab_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/36746cbf-ff1a-4da0-9aa8-596390c7c4ab.txt"
+    },
+    {
+      "id": "5d9d484a-dae6-44ed-9999-c013b1b4cd0a",
+      "title": "ginocarretta S.r.l - Gino Carretta",
+      "cardImageFiles": [
+        "images/5d9d484a-dae6-44ed-9999-c013b1b4cd0a_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/5d9d484a-dae6-44ed-9999-c013b1b4cd0a.txt"
+    },
+    {
+      "id": "22ff0688-cbd4-4c63-9465-da468f6df161",
+      "title": "Peltrera Daniele",
+      "cardImageFiles": [
+        "images/22ff0688-cbd4-4c63-9465-da468f6df161_1.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/22ff0688-cbd4-4c63-9465-da468f6df161.txt"
+    },
+    {
+      "id": "a9baa86c-83a8-4b58-b182-f8b172326754",
+      "title": "Immobliare - Marco Cervo",
+      "cardImageFiles": [
+        "images/a9baa86c-83a8-4b58-b182-f8b172326754_front_1.jpg",
+        "images/a9baa86c-83a8-4b58-b182-f8b172326754_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/a9baa86c-83a8-4b58-b182-f8b172326754.txt"
+    },
+    {
+      "id": "9d1ae6c0-cb09-46f3-b78e-0d94f3547c8b",
+      "title": "C.G.R. TARGHEE TIMBRI S.r.l",
+      "cardImageFiles": [
+        "images/9d1ae6c0-cb09-46f3-b78e-0d94f3547c8b_front_1.jpg",
+        "images/9d1ae6c0-cb09-46f3-b78e-0d94f3547c8b_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/9d1ae6c0-cb09-46f3-b78e-0d94f3547c8b.txt"
+    },
+    {
+      "id": "ec0cdcc3-7031-4fc0-8eb3-4e60130c223c",
+      "title": "D.F. Interni di De Franceschi Luigi & C. S.a.s",
+      "cardImageFiles": [
+        "images/ec0cdcc3-7031-4fc0-8eb3-4e60130c223c_front_1.jpg",
+        "images/ec0cdcc3-7031-4fc0-8eb3-4e60130c223c_back_2.jpg"
+      ],
+      "contactPhotoFile": null,
+      "rawTextFile": "raw-text/ec0cdcc3-7031-4fc0-8eb3-4e60130c223c.txt"
+    }
+  ]
+}

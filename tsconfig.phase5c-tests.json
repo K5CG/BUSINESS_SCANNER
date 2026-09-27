@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "tests/contact-review-state.test.ts",
+    "lib/card-title.ts",
+    "lib/contact-review-state.ts",
+    "lib/email-evidence.ts",
+    "types/**/*.ts"
+  ]
+}

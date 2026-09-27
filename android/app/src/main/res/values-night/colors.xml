@@ -1,0 +1,25 @@
+<resources>
+  <color name="ui_text_primary">#F8FAFC</color>
+  <color name="ui_text_secondary">#CBD5E1</color>
+  <color name="ui_text_disabled">#94A3B8</color>
+  <color name="ui_background">#0F172A</color>
+  <color name="ui_surface">#1E293B</color>
+  <color name="ui_surface_muted">#334155</color>
+  <color name="ui_border">#64748B</color>
+  <color name="ui_primary">#60A5FA</color>
+  <color name="ui_primary_pressed">#93C5FD</color>
+  <color name="ui_text_on_primary">#08111F</color>
+  <color name="ui_danger">#FCA5A5</color>
+  <color name="ui_danger_surface">#451A1A</color>
+  <color name="ui_warning">#FCD34D</color>
+  <color name="ui_warning_surface">#422006</color>
+  <color name="ui_success">#6EE7B7</color>
+  <color name="ui_success_surface">#052E2B</color>
+  <color name="ui_info">#93C5FD</color>
+  <color name="ui_info_surface">#172554</color>
+  <color name="ui_overlay">#D1020617</color>
+  <color name="ui_scrim">#B8000000</color>
+  <color name="ui_camera_text">#FFFFFF</color>
+  <color name="ui_camera_muted">#E2E8F0</color>
+  <color name="ui_camera_surface">#E0000000</color>
+</resources>

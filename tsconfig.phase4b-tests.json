@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "tests/guarded-operation.test.ts",
+    "tests/card-orientation-operation.integration.test.ts",
+    "tests/stubs/react-native-image-stub.ts",
+    "tests/stubs/expo-image-manipulator-stub.ts",
+    "tests/stubs/ml-kit-text-recognition-stub.ts",
+    "tests/stubs/expo-file-system-legacy-stub.ts",
+    "lib/guarded-operation.ts",
+    "lib/temporary-image-cleanup.ts",
+    "lib/card-orientation-fix.ts",
+    "lib/ocr.ts",
+    "lib/ocr-native-concurrency.ts",
+    "lib/local-ocr-pages.ts",
+    "lib/asset-persistence-core.ts"
+  ]
+}

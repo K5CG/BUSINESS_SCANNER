@@ -1,0 +1,40 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "expo-file-system/legacy": ["./tests/stubs/expo-file-system-license-stub.ts"]
+    }
+  },
+  "include": [
+    "tests/entitlement-state-machine.test.ts",
+    "tests/license-secure-storage.test.ts",
+    "tests/licensing-security.test.ts",
+    "tests/license-startup-flow.test.ts",
+    "lib/entitlement.ts",
+    "lib/entitlement-state-machine.ts",
+    "lib/license-config.ts",
+    "lib/license-secure-storage.ts",
+    "lib/license-storage.ts",
+    "lib/installation-id.ts",
+    "lib/installation-id-generate.ts",
+    "lib/license-log.ts",
+    "lib/privacy-consent.ts",
+    "lib/privacy-config.ts",
+    "lib/device-id.ts",
+    "lib/license-service.ts",
+    "lib/config.ts",
+    "lib/supabase-functions.ts",
+    "lib/safe-runtime-logger.ts",
+    "supabase/functions/_shared/license-payload.ts",
+    "supabase/functions/_shared/license-key-hash.ts",
+    "supabase/functions/_shared/license-rate-limit.ts",
+    "supabase/functions/_shared/license-utils.ts",
+    "supabase/functions/check-license/index.ts",
+    "supabase/functions/validate-license/index.ts",
+    "components/LicenseProvider.tsx",
+    "components/LicenseGate.tsx"
+  ]
+}

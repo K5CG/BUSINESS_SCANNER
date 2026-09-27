@@ -1,0 +1,1549 @@
+import type { AnyDocument, FreeDocument, InvoiceDocument, OcrLine, OrderDocument, QuoteDocument } from '../types';
+import { buildDocumentLayoutLines, classifyDocumentLayoutPages, classifyDocumentLayoutPagesAsync, type DocumentLayoutPageInput } from './document-layout';
+import { traceScan } from './scan-trace';
+import { extractDocumentIdentity, type DocumentIdentityExtraction } from './document-parties-metadata';
+import { detectDocumentTableColumnFast, extractDocumentItemsAndTotals, isUnitOfMeasureToken, parseDocumentAmount, type ItemsTotalsExtraction } from './document-items-totals';
+import { logItemsCallPerf } from './structured-layout-runtime';
+import { isDevLogEnabled } from './release-diagnostics';
+import { validateDocumentMonetaryConsistency } from './document-monetary-consistency';
+import { evaluateDocumentCompleteness } from './document-completeness';
+import type { StructuredDocumentExtraction, StructuredDocumentPage, StructuredDocumentType, StructuredLineItem } from './document-structure';
+export type { StructuredDocumentExtraction } from './document-structure';
+import type { DocumentEvidence } from './document-structure';
+import type { DocumentFieldReliability, DocumentFieldReliabilityMap } from './document-field-reliability';
+import { annotateDocumentRegions } from './document-region-model';
+import { detectDocumentLanguages } from './document-label-dictionary';
+import { yieldToOperationEventLoop } from './scan-operation-lifecycle';
+import { logDocumentProcess } from './document-process-log';
+import { STRUCTURED_LAYOUT_DEADLINE_MS } from './structured-layout-runtime';
+import {
+  computeAdaptiveStructuredBudget,
+  estimateTableSignalCount,
+} from './structured-extraction-budget';
+import { isDocumentTypeHeaderText } from './ocr-normalize';
+import {
+  canStartHeavyStage,
+  processDeadlineExceeded,
+  processDeadlineRemainingMs,
+} from './scan-process-deadline';
+import { buildSemanticFallbackExtraction, applySemanticFallbackOverlay } from './document-semantic-fallback';
+import { reconcileVatWithExistingTotals, sanitizeDocumentMonetaryFields } from './document-monetary-guardrails';
+import { looksLikeTechnicalMeasure, repairStructuredLineItemNumerics } from './document-line-item-numeric-repair';
+import { parseInternationalAmount } from './document-international-values';
+import type { DocumentProcessProgressListener } from './document-process-progress';
+import {
+  documentProcessPerfStageEnd,
+  documentProcessPerfStageStart,
+  getDocumentProcessPerfReport,
+  startDocumentProcessPerf,
+} from './document-process-perf';
+import { logDocumentEngineBuild } from './document-engine-build';
+import { isPersistableCommercialItem } from './document-item-validity';
+import { isImplausibleOrganizationName, looksLikePartySectionHeading, partyNameLooksLikeItemDescription } from './document-party-roles';
+import { logSemanticRoleViolation } from './document-field-evidence';
+import { logQaDocument } from './qa-document-logging';
+
+const STRUCTURED_LANGUAGE_HARD_MS = 500;
+const RESERVED_ITEMS_BUDGET_MS = 3_000;
+const RESERVED_ITEMS_BUDGET_PER_EXTRA_PAGE_MS = 3_000;
+const RESERVED_ITEMS_BUDGET_MAX_MS = 8_000;
+const IDENTITY_MIN_MS = 3_500;
+const IDENTITY_MAX_MS = 5_500;
+
+function reservedItemsBudgetMs(pageCount: number): number {
+  const extraPages = Math.max(0, pageCount - 1);
+  return Math.min(
+    RESERVED_ITEMS_BUDGET_MAX_MS,
+    RESERVED_ITEMS_BUDGET_MS + extraPages * RESERVED_ITEMS_BUDGET_PER_EXTRA_PAGE_MS,
+  );
+}
+
+function structuredCoreComplete(
+  identity: DocumentIdentityExtraction,
+  content: ItemsTotalsExtraction,
+): boolean {
+  return content.items.length > 0
+    && (
+      content.summary.total?.normalizedValue !== undefined
+      || content.summary.subtotal?.normalizedValue !== undefined
+      || identity.metadata.documentNumber?.normalizedValue !== undefined
+    );
+}
+
+function structuredTimeoutReasons(
+  identity: DocumentIdentityExtraction,
+  content: ItemsTotalsExtraction,
+  deadlineExceeded: boolean,
+): string[] {
+  if (!deadlineExceeded) return [];
+  if (structuredCoreComplete(identity, content)) return [];
+  return ['structured_process_timeout'];
+}
+
+function logStructuredStagePerf(input: {
+  layoutMs: number;
+  languageMs?: number;
+  identityMs?: number;
+  itemsMs?: number;
+  overlayMs?: number;
+  totalMs: number;
+  inputLines: number;
+  inputElements: number;
+  itemCount: number;
+  deadlineExceeded: boolean;
+  reasons: readonly string[];
+}): void {
+  const report = getDocumentProcessPerfReport();
+  const stageMs = (name: string) => report.stages.find((entry) => entry.stage === name)?.durationMs;
+  logQaDocument('DocumentStagePerf', {
+    normalization_ms: input.layoutMs,
+    language_ms: input.languageMs ?? stageMs('language_detection') ?? 0,
+    identity_ms: input.identityMs ?? stageMs('parties_metadata_extraction') ?? 0,
+    party_ms: input.identityMs ?? stageMs('parties_metadata_extraction') ?? 0,
+    date_ms: 0,
+    table_ms: stageMs('header_column_detection') ?? 0,
+    row_binding_ms: stageMs('item_candidate_generation') ?? 0,
+    quantity_ms: 0,
+    vat_discount_ms: 0,
+    totals_ms: stageMs('totals_candidate_extraction') ?? input.itemsMs ?? 0,
+    fallback_ms: stageMs('semantic_fallback') ?? 0,
+    overlay_ms: input.overlayMs ?? stageMs('semantic_overlay') ?? 0,
+    persistence_prepare_ms: stageMs('persistence_mapping') ?? 0,
+    total_structured_ms: input.totalMs,
+    input_lines: input.inputLines,
+    input_elements: input.inputElements,
+    candidate_counts: input.itemCount,
+    deadline_exceeded: input.deadlineExceeded,
+    reasons: input.reasons,
+  });
+}
+
+function extractItemsWithReservedBudget(
+  layoutPages: StructuredDocumentPage[],
+  pageCount = layoutPages.length,
+): ItemsTotalsExtraction {
+  return extractDocumentItemsAndTotals(layoutPages, {
+    deadline: Date.now() + reservedItemsBudgetMs(pageCount),
+  });
+}
+
+function createPartialStructuredExtraction(
+  layoutPages: StructuredDocumentPage[],
+  reason: string,
+  documentType: StructuredDocumentType,
+  inputs: readonly DocumentLayoutPageInput[],
+): StructuredDocumentExtraction {
+  const rawText = inputs.map((input) => input.rawText).join('\n\n');
+  const lineTexts = layoutPages.flatMap((page) => page.lines.map((line) => line.text));
+  // Timeout must stop refinement only. Always try a bounded items window so
+  // already-visible commercial rows are not wiped because layout zones are empty.
+  const recovered = extractItemsWithReservedBudget(layoutPages);
+  const fallback = buildSemanticFallbackExtraction(documentType, rawText, lineTexts, reason);
+  const items = recovered && recovered.items.length > 0 ? recovered.items : [];
+  return {
+    schemaVersion: 1,
+    metadata: fallback.metadata,
+    ...(fallback.issuer ? { issuer: fallback.issuer } : {}),
+    ...(fallback.customer ? { customer: fallback.customer } : {}),
+    items,
+    summary: {
+      ...fallback.summary,
+      ...(recovered?.summary.subtotal ? { subtotal: recovered.summary.subtotal } : {}),
+      ...(recovered?.summary.vatAmount ? { vatAmount: recovered.summary.vatAmount } : {}),
+      ...(recovered?.summary.total ? { total: recovered.summary.total } : {}),
+      ...(recovered?.summary.discountTotal ? { discountTotal: recovered.summary.discountTotal } : {}),
+    },
+    conditions: {},
+    pages: layoutPages,
+    complete: false,
+    requiresRescan: false,
+    requiresReview: true,
+    reasons: [
+      ...new Set([
+        ...fallback.reasons,
+        ...(recovered?.reasons ?? []),
+        ...(items.length > 0 ? ['structured_items_recovered_after_timeout'] : []),
+      ]),
+    ],
+  };
+}
+
+function languageDeadline(_processDeadline?: number): number {
+  // Dedicated 500ms window. Do not inherit a leftover process timestamp —
+  // Hermes Date.now() can jump ~1s and immediately expire min(now+500, processDeadline).
+  return Date.now() + STRUCTURED_LANGUAGE_HARD_MS;
+}
+
+function finalizeStructuredExtraction(
+  layoutPages: StructuredDocumentPage[],
+  documentType: StructuredDocumentType,
+  inputs: readonly DocumentLayoutPageInput[],
+  identity: DocumentIdentityExtraction,
+  content: ItemsTotalsExtraction,
+  documentLanguage: ReturnType<typeof detectDocumentLanguages>,
+  pageLanguages: Array<ReturnType<typeof detectDocumentLanguages> & { pageIndex: number }>,
+  languageTimedOut: boolean,
+  extraReasons: string[] = [],
+): StructuredDocumentExtraction {
+  documentProcessPerfStageStart('consistency_completeness', {
+    inputLineCount: content.items.length,
+  });
+  const monetary = validateDocumentMonetaryConsistency(content.items, content.summary);
+  const completeness = evaluateDocumentCompleteness(
+    layoutPages,
+    documentType,
+    monetary.items,
+    monetary.summary,
+  );
+  const reasons = [...new Set([
+    ...identity.reasons,
+    ...content.reasons,
+    ...monetary.conflicts,
+    ...completeness.reasons,
+    ...(languageTimedOut ? ['structured_language_timeout'] : []),
+    ...extraReasons,
+  ])];
+  const customerLooksLikeHeader = [identity.customer?.name, identity.recipient?.name]
+    .some((evidence) => {
+      const value = evidence?.normalizedValue?.trim();
+      return !!value && isDocumentTypeHeaderText(value);
+    });
+  if (customerLooksLikeHeader) reasons.push('customer_generic_header_text');
+  const consistencyFailed = reasons.some((reason) =>
+    /mismatch|dropped|without_supported_rows|items_missing|timeout|zero_items_with_table|generic_header/i.test(reason));
+  const rawText = inputs.map((input) => input.rawText).join('\n\n');
+  const lineTexts = layoutPages.flatMap((page) => page.lines.map((line) => line.text));
+  const pagePrimaryLanguages = new Set(
+    pageLanguages
+      .map((page) => page.primaryLanguage)
+      .filter((language): language is NonNullable<typeof language> => !!language),
+  );
+  const mixedLanguage = documentLanguage.mixedLanguage || pagePrimaryLanguages.size > 1;
+  documentProcessPerfStageEnd('consistency_completeness', {
+    outputCandidateCount: monetary.items.length,
+  });
+  const overlaid = applySemanticFallbackOverlay({
+    schemaVersion: 1,
+    language: {
+      detectedLanguages: [...new Set([
+        ...documentLanguage.detectedLanguages,
+        ...pageLanguages.flatMap((page) => page.detectedLanguages),
+      ])],
+      ...(documentLanguage.primaryLanguage
+        ? { primaryLanguage: documentLanguage.primaryLanguage }
+        : {}),
+      confidence: documentLanguage.confidence,
+      mixedLanguage,
+      pages: pageLanguages.map(({
+        pageIndex,
+        detectedLanguages,
+        primaryLanguage,
+        confidence,
+        mixedLanguage,
+      }) => ({
+        pageIndex,
+        detectedLanguages,
+        ...(primaryLanguage ? { primaryLanguage } : {}),
+        confidence,
+        mixedLanguage,
+      })),
+    },
+    metadata: identity.metadata,
+    ...(identity.issuer ? { issuer: identity.issuer } : {}),
+    ...(identity.customer ? { customer: identity.customer } : {}),
+    ...(identity.recipient ? { recipient: identity.recipient } : {}),
+    ...(identity.prospect ? { prospect: identity.prospect } : {}),
+    ...(identity.vehicle ? { vehicle: identity.vehicle } : {}),
+    items: monetary.items,
+    summary: monetary.summary,
+    conditions: content.conditions,
+    ...(content.shipping ? { shipping: content.shipping } : {}),
+    pages: completeness.pages,
+    // `complete` represents extraction coverage, not whether the source
+    // document is arithmetically self-consistent. Monetary/source conflicts
+    // stay visible through reasons + requiresReview, but must not turn a fully
+    // extracted document into an "incomplete" one.
+    complete: completeness.complete,
+    requiresRescan: completeness.requiresRescan,
+    requiresReview:
+      identity.requiresReview ||
+      content.requiresReview ||
+      monetary.requiresReview ||
+      completeness.requiresReview ||
+      languageTimedOut ||
+      consistencyFailed,
+    reasons,
+  }, documentType, rawText, lineTexts);
+  const sanitized = sanitizeDocumentMonetaryFields({
+    subtotal: overlaid.summary.subtotal?.normalizedValue,
+    vatAmount: overlaid.summary.vatAmount?.normalizedValue,
+    total: overlaid.summary.total?.normalizedValue,
+    items: overlaid.items
+      .map((item) => ({ total: item.lineTotal?.normalizedValue }))
+      .filter((item): item is { total: number } => typeof item.total === 'number'),
+  });
+  const patchMoney = (
+    evidence: DocumentEvidence<number> | undefined,
+    value: number | undefined,
+  ): DocumentEvidence<number> | undefined => {
+    if (value === undefined) return undefined;
+    if (evidence && evidence.normalizedValue === value) return evidence;
+    if (!evidence) {
+      return {
+        rawValue: value,
+        normalizedValue: value,
+        pageIndex: 0,
+        sourceLineIds: [],
+        sourceLines: [],
+        validationStatus: 'unverified',
+        confidenceType: 'heuristic',
+        reasons: ['financial_consistency_derived', ...sanitized.rejected],
+        requiresReview: sanitized.rejected.length > 0,
+        alternatives: [],
+      };
+    }
+    return {
+      ...evidence,
+      normalizedValue: value,
+      reasons: [...new Set([...evidence.reasons, 'financial_consistency_applied', ...sanitized.rejected])],
+      requiresReview: evidence.requiresReview || sanitized.rejected.length > 0,
+    };
+  };
+  return {
+    ...overlaid,
+    summary: {
+      ...overlaid.summary,
+      ...(patchMoney(overlaid.summary.subtotal, sanitized.subtotal)
+        ? { subtotal: patchMoney(overlaid.summary.subtotal, sanitized.subtotal) }
+        : { subtotal: undefined }),
+      ...(patchMoney(overlaid.summary.vatAmount, sanitized.vatAmount)
+        ? { vatAmount: patchMoney(overlaid.summary.vatAmount, sanitized.vatAmount) }
+        : { vatAmount: undefined }),
+      ...(patchMoney(overlaid.summary.total, sanitized.total)
+        ? { total: patchMoney(overlaid.summary.total, sanitized.total) }
+        : { total: undefined }),
+    },
+    reasons: [...new Set([...overlaid.reasons, ...sanitized.rejected])],
+    requiresReview: overlaid.requiresReview || sanitized.requiresReview,
+  };
+}
+
+export function isDeferredStructuredExtraction(
+  extraction: StructuredDocumentExtraction,
+): boolean {
+  return extraction.reasons.includes('structured_extraction_deferred_on_scan');
+}
+
+export function shouldSkipStructuredCanonicalApply(
+  extraction: StructuredDocumentExtraction,
+): boolean {
+  const hasRecoverableStructuredData =
+    extraction.items.length > 0 ||
+    validValue(extraction.metadata.documentNumber) !== undefined ||
+    validValue(extraction.summary.total) !== undefined;
+  return (
+    isDeferredStructuredExtraction(extraction)
+    || extraction.reasons.includes('structured_extraction_insufficient_ocr')
+    || extraction.reasons.includes('structured_extraction_runtime_error')
+    || ((extraction.reasons.includes('structured_extraction_timeout')
+      || extraction.reasons.includes('structured_process_timeout'))
+      && !hasRecoverableStructuredData)
+  );
+}
+
+/** Scan iniziale: layout leggero, niente parser pesante che blocca Elabora. */
+export function createScanDeferredStructuredExtraction(
+  inputs: readonly DocumentLayoutPageInput[],
+): StructuredDocumentExtraction {
+  const pages: StructuredDocumentPage[] = inputs.map((input) => ({
+    pageIndex: input.pageIndex,
+    ...(input.ocrCanvasWidth ?? input.width ? { width: input.ocrCanvasWidth ?? input.width } : {}),
+    ...(input.ocrCanvasHeight ?? input.height ? { height: input.ocrCanvasHeight ?? input.height } : {}),
+    lines: buildDocumentLayoutLines(input),
+    zones: [],
+    status: 'partial',
+    complete: false,
+    requiresRescan: false,
+    reasons: ['structured_extraction_deferred'],
+  }));
+  return {
+    schemaVersion: 1,
+    metadata: {},
+    items: [],
+    summary: {
+      taxSummaries: [],
+      conflicts: [],
+      requiresReview: true,
+    },
+    conditions: {},
+    pages,
+    complete: false,
+    requiresRescan: false,
+    requiresReview: true,
+    reasons: ['structured_extraction_deferred_on_scan'],
+  };
+}
+
+/** Estrazione completa a step con yield: non congela Elabora su documenti medi. */
+
+function metadataPagesForIdentity(pages: readonly StructuredDocumentPage[]): StructuredDocumentPage[] {
+  const totalLines = pages.reduce((sum, page) => sum + page.lines.length, 0);
+  if (totalLines <= 100) return [...pages];
+  const preferredRegions = new Set([
+    'header', 'issuer_block', 'customer_block', 'ship_to_block', 'document_identity',
+    'references', 'payment_terms', 'notes', 'footer', 'unknown',
+  ]);
+  return pages.map((page, pagePosition) => {
+    const earlyLimit = pagePosition === 0 ? 78 : 34;
+    const selected = page.lines.filter((line, lineIndex) => {
+      if (lineIndex < earlyLimit) return true;
+      if (!line.semanticRegion) return false;
+      return preferredRegions.has(line.semanticRegion);
+    }).slice(0, pagePosition === 0 ? 105 : 55);
+    const ids = new Set(selected.map((line) => line.id));
+    return {
+      ...page,
+      lines: selected,
+      zones: page.zones.map((zone) => ({
+        ...zone,
+        lineIds: zone.lineIds.filter((id) => ids.has(id)),
+      })).filter((zone) => zone.lineIds.length > 0),
+    };
+  });
+}
+
+function noisyFallbackEvidence<T>(
+  rawValue: unknown,
+  normalizedValue: T,
+  line: StructuredDocumentPage['lines'][number],
+  reason: string,
+) {
+  return {
+    rawValue,
+    normalizedValue,
+    pageIndex: line.pageIndex,
+    sourceLineIds: [line.id],
+    sourceLines: [line.text],
+    evidenceText: line.text,
+    source: 'local' as const,
+    validationStatus: 'unverified' as const,
+    confidenceType: 'heuristic' as const,
+    reasons: [reason],
+    requiresReview: true,
+    alternatives: [],
+  };
+}
+
+function isNoisyFallbackDescription(text: string): boolean {
+  const value = text.trim();
+  if (value.length < 4 || value.length > 180) return false;
+  if (/^(?:subtotal|totale|total|iva|vat|mwst|imponibile|netto|shipping|payment|pagina|page|data|date|invoice|ordine|order|quotation|preventivo)\b/i.test(value)) return false;
+  if (/^[\d\s.,%€$£+-]+$/.test(value)) return false;
+  return /[A-Za-zÀ-ÿ]/.test(value);
+}
+
+function recoverNoisyRowsWhenExtractorIsEmpty(
+  pages: readonly StructuredDocumentPage[],
+): StructuredLineItem[] {
+  const recovered: StructuredLineItem[] = [];
+  for (const page of pages) {
+    const lines = page.lines;
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!isNoisyFallbackDescription(lines[i].text)) continue;
+      const numeric: Array<{ line: typeof lines[number]; value: number }> = [];
+      for (let j = i + 1; j < Math.min(lines.length, i + 7); j += 1) {
+        const text = lines[j].text.trim();
+        if (isNoisyFallbackDescription(text) && numeric.length === 0) break;
+        if (/%/.test(text)) continue;
+        const value = parseDocumentAmount(text.replace(/[€$£]/g, '').trim());
+        if (value !== undefined && Number.isFinite(value)) numeric.push({ line: lines[j], value });
+        if (numeric.length >= 3) break;
+      }
+      if (numeric.length < 3) continue;
+      const [qty, unitPrice, lineTotal] = numeric;
+      if (!Number.isInteger(qty.value) || qty.value <= 0 || qty.value > 10000) continue;
+      if (unitPrice.value < 0 || lineTotal.value < 0) continue;
+      const expected = qty.value * unitPrice.value;
+      const tolerance = Math.max(0.15, Math.abs(lineTotal.value) * 0.08);
+      const arithmeticClose = Math.abs(expected - lineTotal.value) <= tolerance;
+      recovered.push({
+        description: noisyFallbackEvidence(lines[i].text, lines[i].text.trim(), lines[i], 'noisy_ocr_row_fallback'),
+        quantity: noisyFallbackEvidence(qty.line.text, qty.value, qty.line, arithmeticClose ? 'noisy_ocr_row_fallback' : 'noisy_ocr_row_fallback_arithmetic_unverified'),
+        unitPrice: noisyFallbackEvidence(unitPrice.line.text, unitPrice.value, unitPrice.line, 'noisy_ocr_row_fallback'),
+        lineTotal: noisyFallbackEvidence(lineTotal.line.text, lineTotal.value, lineTotal.line, arithmeticClose ? 'noisy_ocr_row_fallback' : 'noisy_ocr_row_fallback_arithmetic_unverified'),
+        pageIndex: page.pageIndex,
+        sourceLineIds: [lines[i].id, qty.line.id, unitPrice.line.id, lineTotal.line.id],
+        sourceLines: [lines[i].text, qty.line.text, unitPrice.line.text, lineTotal.line.text],
+        requiresReview: true,
+      });
+      i = Math.max(i, lines.indexOf(lineTotal.line));
+    }
+  }
+  return recovered.length >= 2 ? recovered : [];
+}
+
+export async function extractStructuredDocumentAsync(
+  documentType: StructuredDocumentType,
+  inputs: readonly DocumentLayoutPageInput[],
+  options?: {
+    isActive?: () => boolean;
+    yieldEvery?: number;
+    layoutDeadlineMs?: number;
+    processDeadline?: number;
+    /** Test/harness only: force the post-layout protected-items path. */
+    forcePostLayoutItemsPressure?: boolean;
+    onProgress?: DocumentProcessProgressListener;
+  },
+): Promise<StructuredDocumentExtraction> {
+  await yieldToOperationEventLoop();
+  startDocumentProcessPerf();
+  logDocumentEngineBuild({
+    pageCount: inputs.length,
+    deadlineMode: options?.processDeadline === undefined ? 'unlimited' : 'production',
+  });
+  const layoutStarted = Date.now();
+  options?.onProgress?.({ stage: 'layout', percent: 42, messageKey: 'processing.layout' });
+  logDocumentProcess('structured_stage', { stage: 'normalize_layout', ms: 0 });
+  traceScan('structured:layout_begin');
+  const totalLines = inputs.reduce((sum, input) => sum + input.lines.length, 0);
+  documentProcessPerfStageStart('ocr_input_preparation', {
+    inputLineCount: totalLines,
+    deadlineRemainingMs: processDeadlineRemainingMs(options?.processDeadline),
+  });
+  documentProcessPerfStageEnd('ocr_input_preparation', {
+    inputLineCount: totalLines,
+    deadlineRemainingMs: processDeadlineRemainingMs(options?.processDeadline),
+  });
+  documentProcessPerfStageStart('page_layout_normalization', {
+    inputLineCount: totalLines,
+    deadlineRemainingMs: processDeadlineRemainingMs(options?.processDeadline),
+  });
+  const tableSignalCount = estimateTableSignalCount(inputs);
+  const layoutBudgetMs = options?.layoutDeadlineMs ?? computeAdaptiveStructuredBudget({
+    pageCount: inputs.length,
+    lineCount: totalLines,
+    tableSignalCount,
+    processDeadline: options?.processDeadline,
+  });
+  const layoutPages = annotateDocumentRegions(await classifyDocumentLayoutPagesAsync(inputs, {
+    isActive: options?.isActive,
+    yieldEvery: options?.yieldEvery ?? 8,
+    layoutDeadlineMs: layoutBudgetMs,
+    processDeadline: options?.processDeadline,
+    tableSignalCount,
+  }));
+  logDocumentProcess('structured_stage', { stage: 'normalize_layout', ms: Date.now() - layoutStarted });
+  documentProcessPerfStageEnd('page_layout_normalization', {
+    inputLineCount: totalLines,
+    outputCandidateCount: layoutPages.reduce((sum, page) => sum + page.zones.length, 0),
+    deadlineRemainingMs: processDeadlineRemainingMs(options?.processDeadline),
+  });
+  traceScan('structured:layout_done', { pages: layoutPages.length });
+  const layoutTimedOut = layoutPages.some((page) =>
+    page.reasons.includes('structured_layout_timeout'));
+  if (layoutTimedOut) {
+    logDocumentProcess('structured_stage', {
+      stage: 'layout_timeout_short_circuit',
+      ms: Date.now() - layoutStarted,
+    });
+    traceScan('structured:layout_timeout_short_circuit');
+    options?.onProgress?.({ stage: 'fallback', percent: 90, messageKey: 'processing.fallback' });
+    return createPartialStructuredExtraction(layoutPages, 'structured_layout_timeout', documentType, inputs);
+  }
+
+  const RESERVED_ITEMS_MS = reservedItemsBudgetMs(layoutPages.length);
+  const layoutPressure =
+    options?.forcePostLayoutItemsPressure === true ||
+    processDeadlineExceeded(options?.processDeadline) ||
+    !canStartHeavyStage(options?.processDeadline);
+
+  // Layout already succeeded. OCR may have consumed the shared process budget on
+  // device; still run the protected items window instead of zeroing rows.
+  if (layoutPressure) {
+    traceScan('structured:process_deadline_after_layout_continue_items');
+    options?.onProgress?.({ stage: 'items_totals', percent: 72, messageKey: 'processing.itemsTotals' });
+    const pageLanguages = layoutPages.map((page) => ({
+      pageIndex: page.pageIndex,
+      ...detectDocumentLanguages(
+        page.lines.slice(0, 48).map((line) => line.text),
+        { deadline: Date.now() + 200 },
+      ),
+    }));
+    const skippedLanguage = pageLanguages[0] ?? detectDocumentLanguages([''], { deadline: Date.now() - 1 });
+    const identity = extractDocumentIdentity(layoutPages, documentType, {
+      primaryLanguage: skippedLanguage.primaryLanguage,
+      // Dedicated window: layout already consumed the shared 10s budget on
+      // Hermes/ARM. 250ms was dropping issuer/customer/dates. Node identity is
+      // ~100ms; Hermes regex/editDistance is typically 8–15× that.
+      deadline: Date.now() + IDENTITY_MIN_MS,
+    });
+    const content = extractItemsWithReservedBudget(layoutPages);
+    if (content.items.length > 0) {
+      traceScan('structured:process_deadline_after_layout_items_preserved', {
+        items: content.items.length,
+      });
+      const extraction = finalizeStructuredExtraction(
+        layoutPages,
+        documentType,
+        inputs,
+        identity,
+        content,
+        skippedLanguage,
+        pageLanguages,
+        true,
+        structuredTimeoutReasons(identity, content, true),
+      );
+      logStructuredStagePerf({
+        layoutMs: Date.now() - layoutStarted,
+        identityMs: IDENTITY_MIN_MS,
+        itemsMs: reservedItemsBudgetMs(layoutPages.length),
+        totalMs: Date.now() - layoutStarted,
+        inputLines: totalLines,
+        inputElements: inputs.reduce((sum, page) =>
+          sum + page.lines.reduce((inner, line) => inner + (line.elements?.length ?? 0), 0), 0),
+        itemCount: content.items.length,
+        deadlineExceeded: true,
+        reasons: extraction.reasons,
+      });
+      return extraction;
+    }
+    options?.onProgress?.({ stage: 'fallback', percent: 90, messageKey: 'processing.fallback' });
+    return createPartialStructuredExtraction(
+      layoutPages,
+      'structured_process_timeout',
+      documentType,
+      inputs,
+    );
+  }
+  await yieldToOperationEventLoop();
+  const languageStarted = Date.now();
+  logDocumentProcess('structured_stage', { stage: 'language_detection', ms: 0 });
+  traceScan('structured:language_begin');
+  options?.onProgress?.({ stage: 'metadata', percent: 60, messageKey: 'processing.metadata' });
+  const langDeadline = languageDeadline(options?.processDeadline);
+  const pageLanguages = layoutPages.map((page) => ({
+    pageIndex: page.pageIndex,
+    ...detectDocumentLanguages(page.lines.map((line) => line.text), { deadline: langDeadline }),
+  }));
+  const documentLanguage = layoutPages.length === 1
+    ? pageLanguages[0]
+    : detectDocumentLanguages(
+      layoutPages.flatMap((page) => page.lines.map((line) => line.text)),
+      { deadline: langDeadline },
+    );
+  logDocumentProcess('structured_stage', { stage: 'language_detection', ms: Date.now() - languageStarted });
+  const languageTimedOut = documentLanguage.timeoutReason === 'structured_language_timeout';
+  await yieldToOperationEventLoop();
+  const identityStarted = Date.now();
+  const remainingAfterLayout = options?.processDeadline === undefined
+    ? undefined
+    : Math.max(0, options.processDeadline - identityStarted);
+  const metadataBudgetMs = remainingAfterLayout === undefined
+    ? undefined
+    : Math.min(
+        IDENTITY_MAX_MS,
+        Math.max(IDENTITY_MIN_MS, remainingAfterLayout - RESERVED_ITEMS_MS),
+      );
+  const metadataDeadline = metadataBudgetMs === undefined
+    ? undefined
+    : Date.now() + metadataBudgetMs;
+  logQaDocument('DocumentDeadline', {
+    structuredStart: layoutStarted,
+    deadlineMs: options?.processDeadline === undefined ? undefined : options.processDeadline - layoutStarted,
+    metadataMs: metadataBudgetMs,
+    itemsMs: RESERVED_ITEMS_MS,
+    totalMs: Date.now() - layoutStarted,
+    expired: processDeadlineExceeded(options?.processDeadline),
+  });
+  if (typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production') {
+    console.warn(`[DocumentDeadline] ${JSON.stringify({
+      structuredStart: layoutStarted,
+      deadlineMs: options?.processDeadline === undefined ? undefined : options.processDeadline - layoutStarted,
+      metadataMs: metadataBudgetMs,
+      itemsMs: RESERVED_ITEMS_MS,
+      totalMs: Date.now() - layoutStarted,
+      expired: processDeadlineExceeded(options?.processDeadline),
+    })}`);
+  }
+  if (isDevLogEnabled()) {
+    console.warn(`[StructuredBudget] ${JSON.stringify({
+      stage: 'metadata_extraction',
+      elapsedMs: identityStarted,
+      remainingMs: remainingAfterLayout,
+      reservedForItemsMs: RESERVED_ITEMS_MS,
+      action: 'stop_metadata_continue_items',
+    })}`);
+  }
+  logDocumentProcess('structured_stage', { stage: 'metadata_extraction', ms: 0 });
+  traceScan('structured:identity_begin');
+  options?.onProgress?.({ stage: 'metadata', percent: 65, messageKey: 'processing.metadata' });
+  documentProcessPerfStageStart('parties_metadata_extraction', {
+    inputLineCount: layoutPages.reduce((sum, page) => sum + page.lines.length, 0),
+    deadlineRemainingMs: processDeadlineRemainingMs(metadataDeadline),
+  });
+  const identityPages = metadataPagesForIdentity(layoutPages);
+  const identity = extractDocumentIdentity(identityPages, documentType, {
+    primaryLanguage: documentLanguage.primaryLanguage,
+    deadline: metadataDeadline,
+  });
+  documentProcessPerfStageEnd('parties_metadata_extraction', {
+    outputCandidateCount: identity.metadata.documentNumber ? 1 : 0,
+    deadlineRemainingMs: processDeadlineRemainingMs(metadataDeadline),
+  });
+  logDocumentProcess('structured_stage', { stage: 'metadata_extraction', ms: Date.now() - identityStarted });
+  await yieldToOperationEventLoop();
+  const itemsStarted = Date.now();
+  logDocumentProcess('structured_stage', { stage: 'items_and_totals', ms: 0 });
+  traceScan('structured:items_begin');
+  options?.onProgress?.({ stage: 'items_totals', percent: 72, messageKey: 'processing.itemsTotals' });
+  logItemsCallPerf('begin', { pages: layoutPages.length, lines: layoutPages.reduce((sum, page) => sum + page.lines.length, 0) });
+  const invokeStarted = Date.now();
+  // Once layout exists, rows are core document data. Give the already
+  // validated table a bounded completion window even if optional metadata
+  // consumed the shared process budget.
+  const itemCompletionDeadline = Math.max(
+    options?.processDeadline ?? 0,
+    Date.now() + RESERVED_ITEMS_MS,
+  );
+  if (isDevLogEnabled()) {
+    console.warn(`[StructuredBudget] ${JSON.stringify({
+      stage: 'items_and_essential_totals',
+      remainingMs: itemCompletionDeadline - Date.now(),
+      reservedForItemsMs: RESERVED_ITEMS_MS,
+      action: 'protected_item_completion',
+    })}`);
+  }
+  documentProcessPerfStageStart('items_and_totals', {
+    inputLineCount: layoutPages.reduce((sum, page) => sum + page.lines.length, 0),
+    deadlineRemainingMs: itemCompletionDeadline - Date.now(),
+  });
+  let content = extractDocumentItemsAndTotals(layoutPages, { deadline: itemCompletionDeadline });
+  documentProcessPerfStageEnd('items_and_totals', {
+    outputCandidateCount: content.items.length,
+    deadlineRemainingMs: itemCompletionDeadline - Date.now(),
+  });
+  // Language/process pressure must not permanently zero a validated multipage table.
+  if (content.items.length === 0) {
+    const retry = extractItemsWithReservedBudget(layoutPages);
+    if (retry.items.length > 0) {
+      traceScan('structured:items_retry_after_empty_timeout', { items: retry.items.length });
+      content = retry;
+    }
+  }
+  if (content.items.length === 0) {
+    const noisyRows = recoverNoisyRowsWhenExtractorIsEmpty(layoutPages);
+    if (noisyRows.length > 0) {
+      traceScan('structured:noisy_ocr_rows_recovered', { items: noisyRows.length });
+      content = {
+        ...content,
+        items: noisyRows,
+        requiresReview: true,
+        reasons: [...new Set([...content.reasons, 'noisy_ocr_row_fallback'])],
+      };
+    }
+  }
+  const udmAnchors = layoutPages.reduce((sum, page) =>
+    sum + page.lines.filter((line) => isUnitOfMeasureToken(line.text)).length, 0);
+  if (
+    !processDeadlineExceeded(options?.processDeadline)
+    && udmAnchors >= 4
+    && content.items.length > 0
+    && content.items.length < Math.round(udmAnchors * 0.7)
+  ) {
+    const retry = extractItemsWithReservedBudget(layoutPages);
+    if (retry.items.length > content.items.length) {
+      traceScan('structured:items_retry_after_sparse_rows', {
+        before: content.items.length,
+        after: retry.items.length,
+        udmAnchors,
+      });
+      content = retry;
+    }
+  }
+  logItemsCallPerf('invokeExtractor', { ms: Date.now() - invokeStarted, items: content.items.length });
+  logDocumentProcess('structured_stage', {
+    stage: 'items_and_totals',
+    ms: Date.now() - itemsStarted,
+    items: content.items.length,
+  });
+  if (processDeadlineExceeded(options?.processDeadline)) {
+    if (content.items.length > 0) {
+      traceScan('structured:process_deadline_after_items_preserve', { items: content.items.length });
+      const extraction = finalizeStructuredExtraction(
+        layoutPages,
+        documentType,
+        inputs,
+        identity,
+        content,
+        documentLanguage,
+        pageLanguages,
+        languageTimedOut,
+        structuredTimeoutReasons(identity, content, true),
+      );
+      logStructuredStagePerf({
+        layoutMs: Date.now() - layoutStarted,
+        languageMs: Date.now() - languageStarted,
+        identityMs: Date.now() - identityStarted,
+        itemsMs: Date.now() - itemsStarted,
+        totalMs: Date.now() - layoutStarted,
+        inputLines: totalLines,
+        inputElements: inputs.reduce((sum, page) =>
+          sum + page.lines.reduce((inner, line) => inner + (line.elements?.length ?? 0), 0), 0),
+        itemCount: content.items.length,
+        deadlineExceeded: true,
+        reasons: extraction.reasons,
+      });
+      return extraction;
+    }
+    return createPartialStructuredExtraction(layoutPages, 'structured_process_timeout', documentType, inputs);
+  }
+  await yieldToOperationEventLoop();
+  const validateStarted = Date.now();
+  logDocumentProcess('structured_stage', { stage: 'reconciliation', ms: 0 });
+  traceScan('structured:validate_begin');
+  options?.onProgress?.({ stage: 'reconciliation', percent: 87, messageKey: 'processing.reconcile' });
+  const extraction = finalizeStructuredExtraction(
+    layoutPages,
+    documentType,
+    inputs,
+    identity,
+    content,
+    documentLanguage,
+    pageLanguages,
+    languageTimedOut,
+  );
+  logDocumentProcess('structured_stage', { stage: 'reconciliation', ms: Date.now() - validateStarted });
+  traceScan('structured:done', {
+    items: extraction.items.length,
+    complete: extraction.complete,
+  });
+  logStructuredStagePerf({
+    layoutMs: Date.now() - layoutStarted,
+    languageMs: Date.now() - languageStarted,
+    identityMs: Date.now() - identityStarted,
+    itemsMs: Date.now() - itemsStarted,
+    overlayMs: Date.now() - validateStarted,
+    totalMs: Date.now() - layoutStarted,
+    inputLines: totalLines,
+    inputElements: inputs.reduce((sum, page) =>
+      sum + page.lines.reduce((inner, line) => inner + (line.elements?.length ?? 0), 0), 0),
+    itemCount: extraction.items.length,
+    deadlineExceeded: processDeadlineExceeded(options?.processDeadline),
+    reasons: extraction.reasons,
+  });
+  return extraction;
+}
+
+export function extractStructuredDocument(
+  documentType: StructuredDocumentType,
+  inputs: readonly DocumentLayoutPageInput[],
+): StructuredDocumentExtraction {
+  startDocumentProcessPerf();
+  const totalLines = inputs.reduce((sum, input) => sum + input.lines.length, 0);
+  documentProcessPerfStageStart('ocr_input_preparation', { inputLineCount: totalLines });
+  documentProcessPerfStageEnd('ocr_input_preparation', { inputLineCount: totalLines });
+  documentProcessPerfStageStart('page_layout_normalization', { inputLineCount: totalLines });
+  traceScan('structured:layout_begin');
+  const layoutPages = annotateDocumentRegions(classifyDocumentLayoutPages(inputs));
+  documentProcessPerfStageEnd('page_layout_normalization', {
+    inputLineCount: totalLines,
+    outputCandidateCount: layoutPages.reduce((sum, page) => sum + page.zones.length, 0),
+  });
+  traceScan('structured:layout_done', { pages: layoutPages.length });
+  const layoutTimedOut = layoutPages.some((page) =>
+    page.reasons.includes('structured_layout_timeout'));
+  if (layoutTimedOut) {
+    traceScan('structured:layout_timeout_short_circuit');
+    return createPartialStructuredExtraction(layoutPages, 'structured_layout_timeout', documentType, inputs);
+  }
+  traceScan('structured:language_begin');
+  const langDeadline = languageDeadline();
+  const pageLanguages = layoutPages.map((page) => ({
+    pageIndex: page.pageIndex,
+    ...detectDocumentLanguages(page.lines.map((line) => line.text), { deadline: langDeadline }),
+  }));
+  const documentLanguage = layoutPages.length === 1
+    ? pageLanguages[0]
+    : detectDocumentLanguages(
+      layoutPages.flatMap((page) => page.lines.map((line) => line.text)),
+      { deadline: langDeadline },
+    );
+  const languageTimedOut = documentLanguage.timeoutReason === 'structured_language_timeout';
+  traceScan('structured:identity_begin');
+  documentProcessPerfStageStart('parties_metadata_extraction', {
+    inputLineCount: layoutPages.reduce((sum, page) => sum + page.lines.length, 0),
+  });
+  const identity = extractDocumentIdentity(layoutPages, documentType, {
+    primaryLanguage: documentLanguage.primaryLanguage,
+  });
+  documentProcessPerfStageEnd('parties_metadata_extraction', {
+    outputCandidateCount: identity.metadata.documentNumber ? 1 : 0,
+  });
+  traceScan('structured:items_begin');
+  documentProcessPerfStageStart('items_and_totals', {
+    inputLineCount: layoutPages.reduce((sum, page) => sum + page.lines.length, 0),
+  });
+  const content = extractDocumentItemsAndTotals(layoutPages);
+  documentProcessPerfStageEnd('items_and_totals', { outputCandidateCount: content.items.length });
+  traceScan('structured:validate_begin');
+  return finalizeStructuredExtraction(
+    layoutPages,
+    documentType,
+    inputs,
+    identity,
+    content,
+    documentLanguage,
+    pageLanguages,
+    languageTimedOut,
+  );
+}
+
+function validValue<T>(evidence: { normalizedValue?: T; validationStatus: string } | undefined): T | undefined {
+  if (!evidence || evidence.normalizedValue === undefined) return undefined;
+  return ['valid', 'unverified', 'ambiguous'].includes(evidence.validationStatus)
+    ? evidence.normalizedValue
+    : undefined;
+}
+
+function dateValue(raw: string | undefined): Date | undefined {
+  if (!raw) return undefined;
+  const date = new Date(`${raw}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function legacyItems(extraction: StructuredDocumentExtraction) {
+  const out = extraction.items.flatMap((item, index) => {
+    const reviewable = <T>(evidence: { normalizedValue?: T; validationStatus: string } | undefined): T | undefined =>
+      evidence?.normalizedValue !== undefined && evidence.validationStatus !== 'invalid'
+        ? evidence.normalizedValue
+        : undefined;
+    const description = reviewable(item.description);
+    if (!description) {
+      console.warn(`[StructuredItemDrop] ${JSON.stringify({
+        index,
+        reason: 'missing_description',
+        pageIndex: item.pageIndex,
+      })}`);
+      return [];
+    }
+    const quantity = looksLikeTechnicalMeasure(String(item.quantity?.rawValue ?? ''))
+      ? undefined
+      : reviewable(item.quantity);
+    const unitPrice = looksLikeTechnicalMeasure(String(item.unitPrice?.rawValue ?? ''))
+      ? undefined
+      : reviewable(item.unitPrice);
+    let total = looksLikeTechnicalMeasure(String(item.lineTotal?.rawValue ?? ''))
+      ? undefined
+      : reviewable(item.lineTotal);
+    const discount = reviewable(item.discount);
+    const vatRate = validValue(item.vatRate);
+    if ((total === undefined || total === 0) && (unitPrice ?? 0) > 0) {
+      const skip = [discount, vatRate].filter((value): value is number => value !== undefined);
+      const printed = [...new Set((item.sourceLines ?? [])
+        .map((line) => parseInternationalAmount(line).normalizedValue)
+        .filter((value): value is number => {
+          if (value === undefined || !(value > 0)) return false;
+          if (quantity !== undefined && Math.abs(value - quantity) < 0.02) return false;
+          return !skip.some((known) => Math.abs(known - value) < 0.01);
+        }))];
+      const printedOwnsUnitPrice =
+        unitPrice === undefined ? false : printed.some((value) => Math.abs(value - unitPrice) < 0.01);
+      if (printedOwnsUnitPrice && (quantity === 1 || quantity === undefined)) {
+        total = unitPrice;
+      } else if (printed.length === 1 && !printedOwnsUnitPrice) {
+        total = printed[0];
+      }
+    }
+    const repaired = repairStructuredLineItemNumerics({
+      quantity,
+      unitPrice,
+      total,
+      discount,
+      vatRate,
+      quantityRaw: item.quantity?.rawValue,
+      unitPriceRaw: item.unitPrice?.rawValue,
+      lineTotalRaw: item.lineTotal?.rawValue,
+      sourceLines: item.sourceLines,
+    });
+    if (repaired) {
+      // A discount candidate cannot survive persistence when the printed line
+      // total reconciles with the undiscounted qty × unit price. This generic
+      // arithmetic ownership guard prevents a neighbouring price/amount cell
+      // from being persisted as a percentage discount.
+      const undiscounted = repaired.quantity * repaired.unitPrice;
+      const fullPriceTolerance = Math.max(0.06, Math.abs(repaired.total) * 0.003);
+      const discountContradictedByArithmetic =
+        discount !== undefined && discount > 0 && discount < 100 &&
+        Math.abs(undiscounted - repaired.total) <= fullPriceTolerance;
+      const persistDiscount = discountContradictedByArithmetic ? undefined : discount;
+      return [{
+        description,
+        quantity: repaired.quantity,
+        unitPrice: repaired.unitPrice,
+        total: repaired.total,
+        ...(vatRate !== undefined ? { vatRate } : {}),
+        ...(persistDiscount !== undefined ? { discount: persistDiscount } : {}),
+      }];
+    }
+    const persistable = isPersistableCommercialItem({
+      description,
+      itemCode: reviewable(item.itemCode),
+      quantity,
+      unitPrice,
+      lineTotal: total,
+      sourceLines: item.sourceLines,
+    });
+    if (
+      persistable
+      && (quantity === undefined || quantity === 0)
+      && (unitPrice === undefined || unitPrice === 0)
+      && (total === undefined || total === 0)
+    ) {
+      const persistDiscount = discount !== undefined && discount < 19 ? discount : undefined;
+      return [{
+        description,
+        quantity: 1,
+        unitPrice: 0,
+        total: 0,
+        ...(vatRate !== undefined ? { vatRate } : {}),
+        ...(persistDiscount !== undefined ? { discount: persistDiscount } : {}),
+      }];
+    }
+    if (total === undefined && quantity === undefined && (unitPrice === undefined || unitPrice === 0)) {
+      if (quantity === 0) {
+        return [{
+          description,
+          quantity: 0,
+          unitPrice: unitPrice ?? 0,
+          total: 0,
+          ...(vatRate !== undefined ? { vatRate } : {}),
+          ...(discount !== undefined ? { discount } : {}),
+        }];
+      }
+      if (!persistable) return [];
+      return [{
+        description,
+        ...(quantity !== undefined ? { quantity } : {}),
+        unitPrice: unitPrice ?? 0,
+        total: total ?? 0,
+        ...(vatRate !== undefined ? { vatRate } : {}),
+        ...(discount !== undefined ? { discount } : {}),
+      }];
+    }
+    const fallbackQty = quantity;
+    const discountRate = discount !== undefined && discount > 0 && discount < 80 ? 1 - discount / 100 : 1;
+    const recoveredListPrice = (() => {
+      if (unitPrice !== undefined || total === undefined || fallbackQty === undefined || fallbackQty <= 0) return undefined;
+      const amounts = (item.sourceLines ?? [])
+        .map((line) => parseInternationalAmount(line).normalizedValue)
+        .filter((value): value is number => value !== undefined && value > 1);
+      return amounts.find((price) => Math.abs(fallbackQty * price * discountRate - total) <= 0.06);
+    })();
+    const fallbackPrice = unitPrice
+      ?? recoveredListPrice
+      ?? (discountRate < 1 || fallbackQty === undefined ? undefined : (total !== undefined && fallbackQty > 0 ? total / fallbackQty : 0))
+      ?? 0;
+    const fallbackTotal = total ?? (
+      fallbackQty !== undefined && fallbackQty > 0
+        ? fallbackQty * fallbackPrice * discountRate
+        : undefined
+    );
+    return [{
+      description,
+      ...(fallbackQty !== undefined ? { quantity: fallbackQty } : {}),
+      unitPrice: fallbackPrice,
+      total: fallbackTotal ?? 0,
+      ...(vatRate !== undefined ? { vatRate } : {}),
+      ...(discount !== undefined ? { discount } : {}),
+    }];
+  });
+  if (out.length !== extraction.items.length) {
+    console.warn(`[StructuredItemMerge] ${JSON.stringify({
+      input: extraction.items.length,
+      final: out.length,
+      dropped: extraction.items.length - out.length,
+    })}`);
+  }
+  return out;
+}
+
+function preferredCustomer(extraction: StructuredDocumentExtraction): string | undefined {
+  const itemDescriptions = extraction.items
+    .map((item) => item.description?.normalizedValue ?? '')
+    .filter(Boolean);
+  const invalid = (value: string) => {
+    const trimmed = value.trim();
+    if (partyNameLooksLikeItemDescription(trimmed, itemDescriptions)) {
+      logSemanticRoleViolation({
+        field: 'customer',
+        fromRole: 'line_item_description',
+        toRole: 'customer',
+        value: trimmed,
+        stage: 'persistence_mapping',
+        reason: 'table_body_description_cannot_be_customer',
+      });
+      return true;
+    }
+    return looksLikePartySectionHeading(trimmed) ||
+      isImplausibleOrganizationName(trimmed) ||
+      isDocumentTypeHeaderText(trimmed) ||
+      /^(?:unit price|payment terms|qty|quantity|description|line total|partita|descripci[oó]n del suministro|referente|ansprechpartner|datos del cliente|fatturare a(?:\s*\/\s*bill to)?|bill to|ship to|rif\.?\s*cliente|customer\s+ref|destinazione(?:\s+merce)?|consegna|tipo metore|tipo motore|tipo veicolo|telaio|order confirmation|quote|invoice|quotation)$/i.test(trimmed) ||
+      (/^[A-ZÀ-ÿ][A-ZÀ-ÿ' ]{2,40}\s*\/\s*[A-ZÀ-ÿ][A-ZÀ-ÿ' ]{2,40}$/.test(trimmed) && !/\d/.test(trimmed)) ||
+      /\b(?:iban|t?ban|bic|swift|bank\s+account|account\s*(?:no|number)|payment\s+(?:details|coordinates))\b/i.test(trimmed) ||
+      /^(?:rif\.?\s*cliente|customer\s+ref\.?|your\s+reference|riferimento\s+cliente)\b/i.test(trimmed) ||
+      /\b[A-Z]{2}\d{2}(?:[\s-]?[A-Z0-9]){11,30}\b/i.test(trimmed) ||
+      !!detectDocumentTableColumnFast(trimmed);
+  };
+  const zoneCustomer = extraction.pages
+    .flatMap((page) => page.zones)
+    .filter((zone) => zone.classification === 'customer')
+    .flatMap((zone) => zone.rawLines)
+    .map((value) => value.trim())
+    .find((value) => {
+      if (!value) return false;
+      if (/^(?:cliente|customer|client|bill[ -]?to|ship[ -]?to|destinazione|consegna|intestazione)\b/i.test(value)) return false;
+      if (/@|https?:|www\.|\b(?:tel|telefono|phone|fax|iban|bic|swift|p\.?\s*iva|vat|cod\.?\s*fisc|referente)\b/i.test(value)) return false;
+      if (/\b\d{5}\b|^(?:via|viale|piazza|corso|strada|street|road|avenue|c\/o)\b/i.test(value)) return false;
+      if (partyNameLooksLikeItemDescription(value, itemDescriptions)) return false;
+      const words = value.split(/\s+/).filter(Boolean);
+      return words.length >= 2 && words.length <= 8 && /[A-Za-zÀ-ÿ]/.test(value);
+    });
+  if (zoneCustomer) return zoneCustomer;
+
+  const issuerName = validValue(extraction.issuer?.name)?.trim().toLowerCase();
+  for (const evidence of [extraction.customer?.name, extraction.recipient?.name, extraction.prospect?.name]) {
+    const value = validValue(evidence);
+    if (value && !invalid(value) && value.trim().toLowerCase() !== issuerName) return value;
+  }
+  const zoneCandidates = extraction.pages
+    .flatMap((page) => page.zones)
+    .filter((zone) => zone.classification === 'customer')
+    .flatMap((zone) => zone.rawLines.map((value, order) => ({ value: value.trim(), order, distance: 0 })));
+
+  const labelCandidates = extraction.pages.flatMap((page) => {
+    const lines = page.lines;
+    const out: Array<{ value: string; order: number; distance: number }> = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      const label = lines[i];
+      const folded = label.text.trim();
+      if (!/^(?:cliente(?:\s*\/.*)?|customer|client|bill[ -]?to|fatturare\s+a|intestazione\s+fattura|cliente\s*\/\s*intestazione\s+fattura)\b/i.test(folded)) continue;
+      const box = label.boundingBox;
+      for (let j = Math.max(0, i - 12); j < Math.min(lines.length, i + 18); j += 1) {
+        if (j === i) continue;
+        const line = lines[j];
+        const value = line.text.trim();
+        if (!value || !line.boundingBox) continue;
+        const dy = box ? line.boundingBox.y - box.y : j - i;
+        if (box && Math.abs(dy) > Math.max(220, box.height * 8)) continue;
+        const horizontalOk = !box || line.boundingBox.x < box.x + Math.max(900, box.width * 5);
+        if (!horizontalOk) continue;
+        out.push({ value, order: line.readingOrder, distance: Math.abs(dy) });
+      }
+    }
+    return out;
+  });
+
+  const semanticCandidates = [...zoneCandidates, ...labelCandidates]
+    .filter(({ value }) => {
+      if (!value || invalid(value)) return false;
+      if (value.toLowerCase() === issuerName) return false;
+      if (/@|https?:|www\.|\b(?:tel|telefono|phone|fax|iban|bic|swift|p\.?\s*iva|vat|cod\.?\s*fisc|referente|agente)\b/i.test(value)) return false;
+      if (/\b\d{5}\b|^(?:via|viale|piazza|corso|strada|street|road|avenue|c\/o)\b/i.test(value)) return false;
+      if (/^(?:cliente|customer|client|bill[ -]?to|ship[ -]?to|destinazione|consegna|intestazione)\b/i.test(value)) return false;
+      if (/^(?:codice|descrizione|quantit|prezzo|sconto|iva|totale)\b/i.test(value)) return false;
+      const words = value.split(/\s+/).filter(Boolean);
+      return words.length >= 2 && words.length <= 9 && /[A-Za-zÀ-ÿ]/.test(value);
+    })
+    .sort((a, b) => {
+      const score = (entry: { value: string; order: number; distance: number }) => {
+        const words = entry.value.split(/\s+/).filter(Boolean).length;
+        return (words >= 2 && words <= 5 ? 25 : 0)
+          + (!/\d/.test(entry.value) ? 15 : 0)
+          + (/\b(?:s\.?r\.?l\.?|s\.?p\.?a\.?|ltd|gmbh|sas|snc|inc|corp|company|societ|officina|autofficina)\b/i.test(entry.value) ? 15 : 0)
+          - (/\b(?:cantiere|consegna|delivery|ship)\b/i.test(entry.value) ? 15 : 0)
+          - Math.min(20, entry.distance / 20);
+      };
+      return score(b) - score(a) || a.order - b.order;
+    });
+  if (semanticCandidates[0]) return semanticCandidates[0].value;
+  return undefined;
+}
+
+function preferredCustomerEvidence(extraction: StructuredDocumentExtraction): DocumentEvidence<string> | undefined {
+  const name = preferredCustomer(extraction);
+  if (!name) return undefined;
+  return [extraction.customer?.name, extraction.recipient?.name, extraction.prospect?.name]
+    .find((evidence) => validValue(evidence) === name);
+}
+
+function normalizePersistedPage(
+  page: StructuredDocumentExtraction['pages'][number],
+): DocumentLayoutPageInput {
+  const boxes = page.lines.flatMap((line) => line.boundingBox ? [line.boundingBox] : []);
+  if (boxes.length === 0) {
+    return {
+      pageIndex: page.pageIndex,
+      lines: page.lines.map((line): OcrLine => ({ text: line.text, confidence: 0 })),
+      rawText: page.lines.map((line) => line.text).join('\n'),
+      width: page.width,
+      height: page.height,
+    };
+  }
+  const minX = Math.min(...boxes.map((box) => box.x));
+  const minY = Math.min(...boxes.map((box) => box.y));
+  const maxRight = Math.max(...boxes.map((box) => box.x + box.width));
+  const maxBottom = Math.max(...boxes.map((box) => box.y + box.height));
+  type Candidate = { index: number; lines: OcrLine[]; width: number; height: number; score: number; strongScore: number; directionalScore: number };
+  const transforms: Array<(box: NonNullable<OcrLine['boundingBox']>) => NonNullable<OcrLine['boundingBox']>> = [
+    (box) => ({ x: box.x - minX, y: box.y - minY, width: box.width, height: box.height }),
+    (box) => ({ x: maxBottom - box.y - box.height, y: box.x - minX, width: box.height, height: box.width }),
+    (box) => ({ x: box.y - minY, y: maxRight - box.x - box.width, width: box.height, height: box.width }),
+    (box) => ({ x: maxRight - box.x - box.width, y: maxBottom - box.y - box.height, width: box.width, height: box.height }),
+  ];
+  const candidates: Candidate[] = transforms.map((transform, index) => {
+    const transformed = page.lines.map((line): OcrLine => ({
+      text: line.text,
+      confidence: 0,
+      ...(line.blockIndex !== undefined ? { blockIndex: line.blockIndex } : {}),
+      ...(line.lineIndex !== undefined ? { lineIndex: line.lineIndex } : {}),
+      ...(line.boundingBox ? { boundingBox: transform(line.boundingBox) } : {}),
+      ...(line.elements ? { elements: line.elements.map((element) => ({
+        text: element.text,
+        elementIndex: element.elementIndex,
+        ...(element.boundingBox ? { boundingBox: transform(element.boundingBox) } : {}),
+      })) } : {}),
+    }));
+    const transformedBoxes = transformed.flatMap((line) => line.boundingBox ? [line.boundingBox] : []);
+    const contentWidth = Math.max(...transformedBoxes.map((box) => box.x + box.width));
+    const contentHeight = Math.max(...transformedBoxes.map((box) => box.y + box.height));
+    const baseWidth = (index === 1 || index === 2 ? page.height : page.width) ?? contentWidth;
+    const baseHeight = (index === 1 || index === 2 ? page.width : page.height) ?? contentHeight;
+    const canvasScale = Math.max(1, contentWidth / baseWidth, contentHeight / baseHeight);
+    const width = baseWidth * canvasScale;
+    const height = baseHeight * canvasScale;
+    const offsetX = Math.max(0, (width - contentWidth) / 2);
+    const offsetY = Math.max(0, (height - contentHeight) / 2);
+    const shift = (box: NonNullable<OcrLine['boundingBox']>) => ({ ...box, x: box.x + offsetX, y: box.y + offsetY });
+    const lines = transformed.map((line): OcrLine => ({
+      ...line,
+      ...(line.boundingBox ? { boundingBox: shift(line.boundingBox) } : {}),
+      ...(line.elements ? { elements: line.elements.map((element) => ({
+        ...element,
+        ...(element.boundingBox ? { boundingBox: shift(element.boundingBox) } : {}),
+      })) } : {}),
+    }));
+    const normalizedBoxes = lines.flatMap((line) => line.boundingBox ? [line.boundingBox] : []);
+    const horizontalRatio = normalizedBoxes.filter((box) => box.width >= box.height).length / normalizedBoxes.length;
+    const typeLines = lines.filter((line) => /\b(?:preventivo|offerta|quotation|ordine|order)\b/i.test(line.text));
+    const typeHeaderScore = typeLines.some((line) => line.boundingBox && line.boundingBox.y + line.boundingBox.height / 2 <= height * 0.35) ? 3 : 0;
+    const tableLabels = lines.filter((line) => /^(?:codice(?: articolo)?|descriz(?:i)?one(?: articolo)?|quantita|q\.?ta|prezz[0o]|importo|totale)$/i.test(line.text.trim()) && line.boundingBox);
+    const tableAlignmentScore = tableLabels.length >= 3 && Math.max(...tableLabels.map((line) => line.boundingBox!.y)) - Math.min(...tableLabels.map((line) => line.boundingBox!.y)) <= Math.max(45, height * 0.04) ? 2 : 0;
+    const strongScore = typeHeaderScore + tableAlignmentScore;
+    const customerAnchors = lines.filter((line) => /\b(?:cliente|destinatario|spettabile|spett\.?le|customer|bill to|ship to)\b/i.test(line.text) && line.boundingBox);
+    const directionalScore = customerAnchors.some((anchor) => lines.some((line) =>
+      line !== anchor && line.boundingBox &&
+      line.boundingBox.y > anchor.boundingBox!.y &&
+      line.boundingBox.y < anchor.boundingBox!.y + height * 0.15 &&
+      Math.abs(line.boundingBox.x - anchor.boundingBox!.x) < width * 0.20 &&
+      /[A-Za-z\u00c0-\u024f]{3}/.test(line.text) &&
+      !/\b(?:cliente|destinatario|spettabile|spett\.?le|customer|bill to|ship to|oggetto|subject|cup|cig|data|date)\b/i.test(line.text)
+    )) ? 2 : 0;
+    return { index, lines, width, height, score: horizontalRatio * 10 + strongScore + directionalScore, strongScore, directionalScore };
+  });
+  const ranked = [...candidates].sort((a, b) => b.score - a.score);
+  const tiedQuarterTurns = ranked[0] && ranked[1] &&
+    Math.abs(ranked[0].score - ranked[1].score) < 0.001 &&
+    new Set([ranked[0].index, ranked[1].index]).size === 2 &&
+    [ranked[0].index, ranked[1].index].every((value) => value === 1 || value === 2) &&
+    ranked[0].strongScore === ranked[1].strongScore &&
+    ranked[0].directionalScore === ranked[1].directionalScore;
+  const selected = tiedQuarterTurns ? candidates[0] : ranked[0];
+  return {
+    pageIndex: page.pageIndex,
+    lines: selected.lines,
+    rawText: selected.lines.map((line) => line.text).join('\n'),
+    width: selected.width,
+    height: selected.height,
+  };
+}
+
+function canonicalGeometryExtraction(
+  documentType: StructuredDocumentType,
+  extraction: StructuredDocumentExtraction,
+): StructuredDocumentExtraction {
+  const needsRepair = extraction.pages.some((page) => {
+    const boxes = page.lines.flatMap((line) => line.boundingBox ? [line.boundingBox] : []);
+    if (boxes.length === 0) return false;
+    const outside = boxes.some((box) =>
+      box.x < 0 || box.y < 0 ||
+      (page.width !== undefined && box.x + box.width > page.width * 1.03) ||
+      (page.height !== undefined && box.y + box.height > page.height * 1.03));
+    const vertical = boxes.filter((box) => box.height > box.width * 1.5).length > boxes.length / 2;
+    return outside || vertical;
+  });
+  if (!needsRepair) return extraction;
+
+  const inputs = extraction.pages.map(normalizePersistedPage);
+  return extractStructuredDocument(documentType, inputs);
+}
+
+function reliabilityFromEvidence(
+  evidence: DocumentEvidence<unknown> | undefined,
+  value?: unknown,
+): DocumentFieldReliability {
+  return {
+    ...(evidence ? { rawValue: evidence.rawValue } : {}),
+    ...(value !== undefined ? { value } : evidence?.normalizedValue !== undefined ? { value: evidence.normalizedValue } : {}),
+    source: 'local_ocr',
+    ...(evidence?.pageIndex !== undefined ? { pageIndex: evidence.pageIndex } : {}),
+    confidenceType: evidence?.confidenceType ?? 'unknown',
+    validationStatus: evidence?.validationStatus ?? 'missing',
+    validationReasons: evidence?.reasons ?? ['canonical_structured_value_missing'],
+    requiresReview: evidence?.requiresReview ?? true,
+    alternatives: (evidence?.alternatives ?? []).map((alternative) => ({
+      rawValue: alternative.rawValue,
+      ...(alternative.normalizedValue !== undefined ? { value: alternative.normalizedValue } : {}),
+      source: 'local_ocr',
+      pageIndex: alternative.pageIndex,
+      confidenceType: evidence?.confidenceType ?? 'unknown',
+      validationStatus: 'unverified',
+      validationReasons: alternative.reasons,
+    })),
+    conflict: evidence?.conflict ?? false,
+  };
+}
+
+function canonicalReliability(
+  extraction: StructuredDocumentExtraction,
+  items: ReturnType<typeof legacyItems>,
+): DocumentFieldReliabilityMap {
+  const customer = preferredCustomerEvidence(extraction);
+  const itemSource = extraction.items[0];
+  const itemRequiresReview = extraction.items.some((item) => item.requiresReview) || extraction.items.length !== items.length;
+  const itemReliability: DocumentFieldReliability = {
+    ...(itemSource ? { rawValue: extraction.items.map((item) => item.sourceLines) } : {}),
+    ...(items.length > 0 ? { value: items } : {}),
+    source: 'local_ocr',
+    ...(itemSource ? { pageIndex: itemSource.pageIndex } : {}),
+    confidenceType: 'heuristic',
+    validationStatus: items.length > 0 ? (itemRequiresReview ? 'unverified' : 'valid') : extraction.items.length > 0 ? 'ambiguous' : 'missing',
+    validationReasons: items.length > 0 ? ['canonical_structured_items'] : extraction.items.length > 0 ? ['incomplete_structured_items'] : ['canonical_structured_items_missing'],
+    requiresReview: items.length === 0 || itemRequiresReview,
+    alternatives: [],
+    conflict: extraction.items.some((item) => [item.quantity, item.unitPrice, item.lineTotal].some((evidence) => evidence?.conflict)),
+  };
+  return {
+    documentNumber: reliabilityFromEvidence(extraction.metadata.documentNumber),
+    customerName: reliabilityFromEvidence(customer),
+    date: reliabilityFromEvidence(extraction.metadata.issueDate),
+    vatNumber: reliabilityFromEvidence(extraction.customer?.vatNumber ?? extraction.recipient?.vatNumber ?? extraction.prospect?.vatNumber),
+    subtotal: reliabilityFromEvidence(extraction.summary.subtotal),
+    vatAmount: reliabilityFromEvidence(extraction.summary.vatAmount),
+    total: reliabilityFromEvidence(extraction.summary.total),
+    currency: reliabilityFromEvidence(extraction.summary.currency ?? extraction.metadata.currency),
+    items: itemReliability,
+  };
+}
+
+export function applyStructuredExtractionToDocument<T extends AnyDocument>(
+  document: T,
+  extraction: StructuredDocumentExtraction,
+  options: { mode?: 'merge' | 'new_scan' } = {},
+): T {
+  documentProcessPerfStageStart('persistence_mapping', {
+    inputLineCount: extraction.items.length,
+  });
+  try {
+    return applyStructuredExtractionToDocumentInner(document, extraction, options);
+  } finally {
+    documentProcessPerfStageEnd('persistence_mapping', {
+      outputCandidateCount: extraction.items.length,
+    });
+  }
+}
+
+function applyStructuredExtractionToDocumentInner<T extends AnyDocument>(
+  document: T,
+  extraction: StructuredDocumentExtraction,
+  options: { mode?: 'merge' | 'new_scan' } = {},
+): T {
+  if (document.type === 'business_card') return document;
+  if (isDeferredStructuredExtraction(extraction)) {
+    return { ...document, structuredExtraction: extraction };
+  }
+  // Elabora/new_scan: evitiamo il re-parse sincrono che congela il JS thread.
+  if (options.mode !== 'new_scan') {
+    extraction = canonicalGeometryExtraction(document.type, extraction);
+  }
+  const number = validValue(extraction.metadata.documentNumber);
+  const issueDate = dateValue(validValue(extraction.metadata.issueDate));
+  const dueDate = dateValue(validValue(extraction.metadata.dueDate));
+  const validityDate = dateValue(validValue(extraction.metadata.validityDate));
+  const customerName = preferredCustomer(extraction);
+  const customerVat = validValue(extraction.customer?.vatNumber) ?? validValue(extraction.recipient?.vatNumber);
+  const currency = validValue(extraction.summary.currency) ?? validValue(extraction.metadata.currency);
+  const items = legacyItems(extraction);
+  const monetary = sanitizeDocumentMonetaryFields({
+    subtotal: validValue(extraction.summary.subtotal),
+    vatAmount: validValue(extraction.summary.vatAmount),
+    total: validValue(extraction.summary.total),
+    items,
+  });
+  if (typeof __DEV__ === 'undefined' || __DEV__) {
+    console.warn(`[TotalsMergeDebug] ${JSON.stringify({
+      structuredSubtotal: validValue(extraction.summary.subtotal),
+      finalSubtotal: monetary.subtotal,
+      selectedSource: monetary.rejected.length ? 'structured_sanitized' : 'structured',
+    })}`);
+    console.warn(`[VatMergeDebug] ${JSON.stringify({
+      structuredVat: validValue(extraction.summary.vatAmount),
+      finalVat: monetary.vatAmount,
+      selectedSource: monetary.rejected.length ? 'structured_sanitized' : 'structured',
+    })}`);
+    console.warn(`[GrandTotalMergeDebug] ${JSON.stringify({
+      structuredTotal: validValue(extraction.summary.total),
+      finalTotal: monetary.total,
+      selectedSource: monetary.rejected.length ? 'structured_sanitized' : 'structured',
+    })}`);
+  }
+  const { subtotal, vatAmount, total } = monetary;
+  const authoritative = options.mode === 'new_scan';
+  const existingTotals = document as { subtotal?: number; total?: number };
+  const vatReconciliation: { vatAmount?: number; rejected?: string } = authoritative
+    ? { vatAmount }
+    : reconcileVatWithExistingTotals(vatAmount, existingTotals);
+  const mergedVatAmount = vatReconciliation.vatAmount;
+  if ((typeof __DEV__ === 'undefined' || __DEV__) && vatReconciliation.rejected) {
+    console.warn(`[VatMergeDebug] ${JSON.stringify({
+      structuredVat: vatAmount,
+      finalVat: undefined,
+      selectedSource: 'existing_totals',
+      rejected: vatReconciliation.rejected,
+    })}`);
+  }
+  const fieldReliability = authoritative
+    ? canonicalReliability(extraction, items)
+    : document.fieldReliability;
+  const canonicalFieldMerge = authoritative && document.fieldMerge
+    ? {
+        fields: {},
+        fieldReliability: fieldReliability ?? {},
+        itemGroups: [],
+        extractedFieldGroups: document.type === 'free_document' ? document.fieldMerge.extractedFieldGroups : [],
+        appliedFields: {},
+        conflicts: [],
+        rawText: document.fieldMerge.rawText,
+        includedPageIndexes: [...document.fieldMerge.includedPageIndexes],
+        pageIntegrity: { ...document.fieldMerge.pageIntegrity },
+        requiresReview: extraction.requiresReview,
+      }
+    : document.fieldMerge;
+
+  if (document.type === 'quote') {
+    const quote: QuoteDocument = {
+      ...document,
+      structuredExtraction: extraction,
+      ...(fieldReliability ? { fieldReliability } : {}),
+      ...(canonicalFieldMerge ? { fieldMerge: canonicalFieldMerge } : {}),
+      ...((authoritative || !document.quoteNumber) && number ? { quoteNumber: number } : {}),
+      ...((authoritative || !document.quoteDate) && issueDate ? { quoteDate: issueDate } : {}),
+      ...((authoritative || !document.validUntil) && (validityDate ?? dueDate) ? { validUntil: validityDate ?? dueDate } : {}),
+      ...((authoritative || !document.customerName) && customerName ? { customerName } : {}),
+      ...((authoritative || !document.customerVat) && customerVat ? { customerVat } : {}),
+      ...((authoritative || document.items.length === 0) && items.length > 0 ? { items } : {}),
+      ...((authoritative || document.subtotal === undefined) && subtotal !== undefined ? { subtotal } : {}),
+      ...((authoritative || document.vatAmount === undefined) && mergedVatAmount !== undefined ? { vatAmount: mergedVatAmount } : {}),
+      ...((authoritative || document.total === undefined) && total !== undefined ? { total } : {}),
+      ...((authoritative || document.currency === undefined) && currency ? { currency } : {}),
+    };
+    if (authoritative) {
+      quote.title = number
+        ? `Preventivo ${number}`
+        : issueDate
+          ? `Preventivo del ${issueDate.toLocaleDateString('it-IT')}`
+          : quote.title;
+      if (items.length === 0) quote.items = [];
+      quote.customerName = customerName;
+      if (total !== undefined) quote.total = total;
+    }
+    return quote as T;
+  }
+  if (document.type === 'invoice') {
+    const invoice: InvoiceDocument = {
+      ...document,
+      structuredExtraction: extraction,
+      ...(fieldReliability ? { fieldReliability } : {}),
+      ...(canonicalFieldMerge ? { fieldMerge: canonicalFieldMerge } : {}),
+      ...((authoritative || !document.invoiceNumber) && number ? { invoiceNumber: number } : {}),
+      ...((authoritative || !document.invoiceDate) && issueDate ? { invoiceDate: issueDate } : {}),
+      ...((authoritative || !document.dueDate) && dueDate ? { dueDate } : {}),
+      ...((authoritative || !document.customerName) && customerName ? { customerName } : {}),
+      ...((authoritative || !document.customerVat) && customerVat ? { customerVat } : {}),
+      ...((authoritative || document.items.length === 0) && items.length > 0 ? { items } : {}),
+      ...((authoritative || document.subtotal === undefined) && subtotal !== undefined ? { subtotal } : {}),
+      ...((authoritative || document.vatAmount === undefined) && mergedVatAmount !== undefined ? { vatAmount: mergedVatAmount } : {}),
+      ...((authoritative || document.total === undefined) && total !== undefined ? { total } : {}),
+      ...((authoritative || document.currency === undefined) && currency ? { currency } : {}),
+    };
+    if (authoritative) {
+      invoice.title = number
+        ? `Fattura ${number}`
+        : issueDate
+          ? `Fattura del ${issueDate.toLocaleDateString('it-IT')}`
+          : invoice.title;
+      if (items.length === 0) invoice.items = [];
+      invoice.customerName = customerName;
+      if (total !== undefined) invoice.total = total;
+    }
+    return invoice as T;
+  }
+  if (document.type === 'order') {
+    const order: OrderDocument = {
+      ...document,
+      structuredExtraction: extraction,
+      ...(fieldReliability ? { fieldReliability } : {}),
+      ...(canonicalFieldMerge ? { fieldMerge: canonicalFieldMerge } : {}),
+      ...((authoritative || !document.orderNumber) && number ? { orderNumber: number } : {}),
+      ...((authoritative || !document.orderDate) && issueDate ? { orderDate: issueDate } : {}),
+      ...((authoritative || !document.deliveryDate) && dueDate ? { deliveryDate: dueDate } : {}),
+      ...((authoritative || !document.customerName) && customerName ? { customerName } : {}),
+      ...((authoritative || !document.customerVat) && customerVat ? { customerVat } : {}),
+      ...((authoritative || document.items.length === 0) && items.length > 0 ? { items } : {}),
+      ...((authoritative || document.subtotal === undefined) && subtotal !== undefined ? { subtotal } : {}),
+      ...((authoritative || document.vatAmount === undefined) && mergedVatAmount !== undefined ? { vatAmount: mergedVatAmount } : {}),
+      ...((authoritative || document.total === undefined) && total !== undefined ? { total } : {}),
+      ...((authoritative || document.currency === undefined) && currency ? { currency } : {}),
+    };
+    if (authoritative) {
+      order.title = number
+        ? `Ordine ${number}`
+        : issueDate
+          ? `Ordine del ${issueDate.toLocaleDateString('it-IT')}`
+          : order.title;
+      if (items.length === 0) order.items = [];
+      order.customerName = customerName;
+      if (total !== undefined) order.total = total;
+    }
+    return order as T;
+  }
+  const fields: Record<string, string> = { ...document.extractedFields };
+  const cup = validValue(extraction.metadata.cup);
+  const cig = validValue(extraction.metadata.cig);
+  const references = validValue(extraction.metadata.references);
+  if (cup && !fields.CUP) fields.CUP = cup;
+  if (cig && !fields.CIG) fields.CIG = cig;
+  if (references?.length && !fields.riferimenti) fields.riferimenti = references.join('; ');
+  const free: FreeDocument = {
+    ...document,
+    structuredExtraction: extraction,
+    ...(fieldReliability ? { fieldReliability } : {}),
+    ...(canonicalFieldMerge ? { fieldMerge: canonicalFieldMerge } : {}),
+    ...((authoritative || !document.documentNumber) && number ? { documentNumber: number } : {}),
+    ...((authoritative || !document.documentDate) && issueDate ? { documentDate: issueDate } : {}),
+    extractedFields: fields,
+  };
+  if (authoritative) {
+    free.title = number ? `Documento ${number}` : free.title;
+  }
+  return free as T;
+}

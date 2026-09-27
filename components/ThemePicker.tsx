@@ -1,0 +1,125 @@
+import React, { useRef, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUiPalette } from '../lib/ui-theme';
+import { typography } from '../lib/ui-system';
+import type { ThemePreference } from '../lib/theme-prefs';
+import { useModalAccessibilityFocus } from '../lib/use-modal-accessibility-focus';
+import { useThemePreference } from './ThemePreferenceProvider';
+
+const THEMES = [
+  { value: 'system', icon: 'contrast-outline', labelKey: 'themeSystem', hintKey: 'themeSystemHint' },
+  { value: 'light', icon: 'sunny-outline', labelKey: 'themeLight', hintKey: 'themeLightHint' },
+  { value: 'dark', icon: 'moon-outline', labelKey: 'themeDark', hintKey: 'themeDarkHint' },
+] as const satisfies ReadonlyArray<{
+  value: ThemePreference;
+  icon: keyof typeof Ionicons.glyphMap;
+  labelKey: string;
+  hintKey: string;
+}>;
+
+export function ThemePicker() {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const palette = useUiPalette();
+  const { preference, setPreference } = useThemePreference();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<View>(null);
+  useModalAccessibilityFocus(open, menuRef);
+  const active = THEMES.find(({ value }) => value === preference) ?? THEMES[0];
+
+  const select = (nextPreference: ThemePreference) => {
+    setOpen(false);
+    void setPreference(nextPreference);
+  };
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[styles.trigger, { backgroundColor: palette.surfaceMuted }]}
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={t('themeSelectorLabel')}
+        accessibilityHint={t('themeSelectorHint')}
+      >
+        <Ionicons name={active.icon} size={18} color={palette.textPrimary} accessible={false} />
+        <Ionicons name="chevron-down" size={10} color={palette.textPrimary} accessible={false} />
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={[styles.backdrop, { backgroundColor: palette.scrim }]} onPress={() => setOpen(false)} accessible={false} />
+          <View
+            style={[styles.menu, { top: insets.top + 36, left: 20, backgroundColor: palette.surfaceMuted, borderColor: palette.border, shadowColor: palette.textPrimary }]}
+            accessibilityViewIsModal
+            importantForAccessibility="yes"
+          >
+            {THEMES.map(({ value, icon, labelKey, hintKey }) => {
+              const selected = preference === value;
+              return (
+                <TouchableOpacity
+                  ref={selected ? menuRef : undefined}
+                  key={value}
+                  style={[styles.option, selected && { backgroundColor: palette.infoSurface }]}
+                  onPress={() => void select(value)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t(labelKey)}
+                  accessibilityHint={t(hintKey)}
+                  accessibilityState={{ selected }}
+                >
+                  <Ionicons name={icon} size={18} color={palette.textPrimary} accessible={false} />
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.optionLabel, { color: palette.textPrimary }]}>{t(labelKey)}</Text>
+                  {selected ? (
+                    <Ionicons name="checkmark" size={16} color={palette.primary} accessible={false} />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  trigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  modalRoot: { flex: 1 },
+  backdrop: { ...StyleSheet.absoluteFillObject },
+  menu: {
+    position: 'absolute',
+    minWidth: 144,
+    maxWidth: '80%',
+    borderRadius: 6,
+    paddingVertical: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  optionLabel: {
+    flex: 1,
+    ...typography.bodySecondary,
+    fontWeight: '500',
+  },
+});

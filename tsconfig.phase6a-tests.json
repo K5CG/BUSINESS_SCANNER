@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "tests/test-runner-reliability.test.ts",
+    "lib/test-suite-contract.ts",
+    "lib/bundled-script-runner.ts",
+    "scripts/run-bundled-script.ts"
+  ]
+}

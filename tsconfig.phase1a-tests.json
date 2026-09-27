@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "tests/document-ai-review.test.ts",
+    "lib/document-ai-review.ts",
+    "lib/local-ocr-pages.ts",
+    "types/**/*.ts"
+  ]
+}

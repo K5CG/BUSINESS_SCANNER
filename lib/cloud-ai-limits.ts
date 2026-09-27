@@ -1,0 +1,2 @@
+export const MAX_CLOUD_DOCUMENT_PAGES = 10;
+export const MAX_CLOUD_PDF_BYTES = 10 * 1024 * 1024;

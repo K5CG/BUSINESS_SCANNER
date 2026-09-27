@@ -1,0 +1,236 @@
+import { levenshteinDistance } from '../validators/dictionaries';
+
+const FUSED_EMAIL_TLDS = 'it|com|net|org|eu|io|info|biz';
+const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+
+const GENERIC_EMAIL_DOMAINS = new Set([
+  'gmail.com',
+  'yahoo.com',
+  'hotmail.com',
+  'outlook.com',
+  'icloud.com',
+  'libero.it',
+  'live.com',
+  'tiscali.it',
+  'alice.it',
+  'virgilio.it',
+  'tin.it',
+  'email.it',
+  'pec.it',
+  'legalmail.it',
+]);
+
+function isGenericEmailDomain(domain: string): boolean {
+  const d = domain.toLowerCase();
+  return GENERIC_EMAIL_DOMAINS.has(d) || /pec|legalmail|postacert/i.test(d);
+}
+
+/**
+ * In contesto alfabetico, l'OCR confonde spesso 0↔O adiacente a lettere.
+ * Non tocca sequenze puramente numeriche (gestite da `repairOcrDigits`).
+ */
+export function repairOcrLetterZeros(text: string): string {
+  return text
+    .replace(/([A-Za-zÀ-Ü.])0([A-Za-zÀ-Ü.])/g, '$1O$2')
+    .replace(/0([A-Za-zÀ-Ü])/g, 'O$1')
+    .replace(/([A-Za-zÀ-Ü])0/g, '$1O');
+}
+
+/**
+ * In token con prevalenza di cifre (CAP, prefissi telefonici), O/I/l → cifre.
+ */
+export function repairOcrDigits(text: string): string {
+  return text.replace(/\b[\dOoIl]{4,}\b/g, (token) => {
+    const digitChars = token.replace(/[Oo]/g, '0').replace(/[Il]/g, '1');
+    const digitRatio =
+      (digitChars.match(/\d/g)?.length ?? 0) / Math.max(digitChars.length, 1);
+    return digitRatio >= 0.6 ? digitChars : token;
+  });
+}
+
+/** Prefissi internazionali IT letti con O al posto di 0 (es. OO39 → 0039). */
+export function repairPhonePrefixZeros(text: string): string {
+  return text
+    .replace(/\bOO39\b/gi, '0039')
+    .replace(/\bO039\b/gi, '0039')
+    .replace(/\b0039\.O(\d)/gi, '0039.0$1');
+}
+
+/** Spazi e puntezione rumorosi attorno a `@` e TLD nelle email. */
+export function repairEmailSpacing(text: string): string {
+  return text
+    .replace(/[(\[{]\s*@/g, '@')
+    .replace(/([A-Za-z0-9._%+-])\s+@/g, '$1@')
+    .replace(/@\s+([a-zA-Z0-9])/g, '@$1')
+    .replace(/@([a-zA-Z0-9._%+-]+)\.\s+(it|com|net|org|eu|io|info|biz|[a-z]{2})\b/gi, '@$1.$2')
+    .replace(
+      /@([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*)\s+(it|com|net|org|eu|io|info|biz|[a-z]{2})\b/gi,
+      '@$1.$2'
+    )
+    .replace(/\S*@\S*/g, (token) => token.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+}
+
+/** Dominio+TLD fusi senza punto (es. `nome@dominioit` → `nome@dominio.it`). */
+export function repairEmailFusedTld(text: string): string {
+  return text.replace(
+    new RegExp(`@([a-z0-9][a-z0-9-]{2,})(${FUSED_EMAIL_TLDS})\\b`, 'gi'),
+    '@$1.$2'
+  );
+}
+
+function collectEmailDomainRoots(text: string): Array<{ root: string; tld: string }> {
+  const roots = new Map<string, string>();
+  for (const match of text.match(EMAIL_REGEX) ?? []) {
+    const domain = match.split('@')[1]?.toLowerCase();
+    if (!domain || isGenericEmailDomain(domain)) continue;
+    const [root, tld] = domain.split('.');
+    if (root && tld && root.length >= 3) roots.set(root, tld);
+  }
+  for (const m of text.matchAll(/\b([a-z0-9-]{3,})\s+s\.?\s*r\.?\s*l\.?\b/gi)) {
+    roots.set(m[1].toLowerCase(), 'it');
+  }
+  return [...roots.entries()].map(([root, tld]) => ({ root, tld }));
+}
+
+/** OCR legge `@the t` / `@the it` al posto di `@marchio.it` — usa radici dal testo. */
+export function repairEmailTheTld(text: string): string {
+  const roots = collectEmailDomainRoots(text);
+  if (!roots.length) return text;
+
+  let t = text;
+  for (const { root, tld } of roots) {
+    t = t.replace(
+      /([a-z0-9._%+-]+)@the\s+t\b/gi,
+      (_, local) => `${local}@${root}.${tld}`
+    );
+    t = t.replace(
+      /([a-z0-9._%+-]+)@the\s+it\b/gi,
+      (_, local) => `${local}@${root}.${tld}`
+    );
+  }
+  return t;
+}
+
+/** Completa domini email troncati usando altre email nello stesso testo (es. `@giv.it` → `@givi.it`). */
+export function repairEmailTruncatedDomains(text: string): string {
+  const roots = collectEmailDomainRoots(text);
+  if (!roots.length) return text;
+
+  return text.replace(
+    /@([a-z0-9][a-z0-9-]{1,})\.(it|com|net|org|eu|io)\b/gi,
+    (full, host, tld) => {
+      const hostLower = host.toLowerCase();
+      for (const hint of roots) {
+        if (hint.tld !== tld.toLowerCase()) continue;
+        if (hint.root === hostLower) return full;
+        if (hint.root.startsWith(hostLower) && hint.root.length > hostLower.length) {
+          return `@${hint.root}.${tld}`;
+        }
+        const dist = levenshteinDistance(hostLower, hint.root);
+        if (dist > 0 && dist <= 2 && Math.abs(hostLower.length - hint.root.length) <= 2) {
+          return `@${hint.root}.${tld}`;
+        }
+      }
+      return full;
+    }
+  );
+}
+
+/** `ww.` OCR → `www.` */
+export function repairWwwPrefix(text: string): string {
+  return text.replace(/\bww\.([a-z0-9-]{3,})\b/gi, 'www.$1');
+}
+
+/** Completa host sito troncati usando domini email nello stesso testo (es. `www.bluet` → `www.kblue.it`). */
+export function repairTruncatedWebsiteHosts(text: string): string {
+  const roots = collectEmailDomainRoots(text);
+  if (!roots.length) return text;
+
+  return text.replace(/\b(?:www\.|ww\.)([a-z0-9-]{3,})\b(?!\.\w{2,})/gi, (match, host) => {
+    const hostLower = host.toLowerCase();
+    for (const hint of roots) {
+      if (hostLower === hint.root) return `www.${hint.root}.${hint.tld}`;
+      const dist = levenshteinDistance(hostLower, hint.root);
+      if (dist > 0 && dist <= 2 && Math.abs(hostLower.length - hint.root.length) <= 3) {
+        return `www.${hint.root}.${hint.tld}`;
+      }
+    }
+    return match;
+  });
+}
+
+/**
+ * Refuso OCR comune su local-part email: `into@` al posto di `info@`.
+ * Applicato solo immediatamente prima di `@`, non come sostituzione globale.
+ */
+export function repairEmailLocalPartNearAt(text: string): string {
+  return text.replace(/\binto@/gi, 'info@');
+}
+
+/** Etichette email OCR (`cmail`, `e mail`, …) → forma canonica. */
+export function repairEmailLabels(text: string): string {
+  return text
+    .replace(/\bcmail\s*:/gi, 'e-mail:')
+    .replace(/\be\s*mail\s*:/gi, 'e-mail:');
+}
+
+/** Rimuove etichette indirizzo dall'OCR. */
+export function stripAddressLabel(text: string): string {
+  return text
+    .trim()
+    .replace(/^(?:indirizzo|address|addr\.?|sede(?:\s+(?:legale|operativa|amministrativa))?)\s*[:\-–]\s*/i, '')
+    .replace(/^(?:cap|c\.?\s*p\.?|zip|postal\s*code)\s*[:\-–]\s*/i, '')
+    .replace(/^(?:citt[aà]|city|localit[aà]|comune|provincia|prov\.?)\s*[:\-–]\s*/i, '')
+    .trim();
+}
+
+/** Separa civico e CAP fusi (es. `1536015` → `15 36015`). */
+export function repairFusedCivicAndCap(text: string): string {
+  return text.replace(/\b(\d{1,4})(\d{5})\b/g, '$1 $2');
+}
+
+/** Corregge CAP OCR con O/I al posto di 0/1 (es. `2502O` → `25020`). */
+export function repairItalianPostalCode(text: string): string {
+  return text.replace(/\b([0-9oOIl]{5})\b/g, (token) => {
+    const digits = (token.match(/\d/g) ?? []).length;
+    return digits >= 3 ? token.replace(/[oO]/g, '0').replace(/[Il]/g, '1') : token;
+  });
+}
+
+/** Repair numerico su una singola riga indirizzo. */
+export function repairAddressLine(text: string): string {
+  let t = stripAddressLabel(text);
+  t = repairFusedCivicAndCap(t);
+  t = repairItalianPostalCode(t);
+  t = repairOcrDigits(t);
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+/** Repair OCR su testo indirizzo multi-riga. */
+export function repairAddressText(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => repairAddressLine(line))
+    .join('\n');
+}
+
+/**
+ * Pipeline di repair OCR generici su testo contatto (email, sito, telefono).
+ * Nessuna correzione legata a brand o domini specifici.
+ */
+export function repairOcrContactText(text: string): string {
+  let t = text;
+  t = repairEmailLabels(t);
+  t = repairEmailSpacing(t);
+  t = repairEmailFusedTld(t);
+  t = repairEmailTheTld(t);
+  t = repairEmailTruncatedDomains(t);
+  t = repairEmailLocalPartNearAt(t);
+  t = repairWwwPrefix(t);
+  t = repairTruncatedWebsiteHosts(t);
+  t = repairPhonePrefixZeros(t);
+  t = repairOcrDigits(t);
+  t = repairOcrLetterZeros(t);
+  return t;
+}
+

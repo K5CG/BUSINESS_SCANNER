@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "types": ["node"]
+  },
+  "include": [
+    "lib/document-capture-orientation.ts",
+    "lib/document-orientation-evidence.ts",
+    "lib/image-preparation.ts",
+    "lib/jpeg-exif-orientation.ts",
+    "lib/overlay-geometry.ts",
+    "tests/jpeg-exif-orientation.test.ts",
+    "tests/document-capture-orientation.test.ts",
+    "tests/document-camera-recovery.test.ts",
+    "tests/document-landscape-upside-down.test.ts",
+    "tests/real-kunzi-orientation.test.ts",
+    "tests/document-multipage-orientation.test.ts",
+    "tests/document-deterministic-orientation.test.ts",
+    "tests/document-visual-orientation.test.ts"
+  ]
+}

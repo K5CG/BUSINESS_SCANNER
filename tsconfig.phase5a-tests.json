@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "tests/scan-operation-lifecycle.test.ts",
+    "lib/scan-operation-lifecycle.ts",
+    "lib/guarded-operation.ts",
+    "lib/asset-persistence-core.ts",
+    "lib/persistence.ts",
+    "store/useContactStore.ts",
+    "store/useDocumentStore.ts",
+    "types/**/*.ts"
+  ]
+}

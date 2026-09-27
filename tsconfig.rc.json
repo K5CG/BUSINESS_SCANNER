@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "types/**/*.ts",
+    "types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios",
+    "tests",
+    "scripts",
+    "CHATGPT_THEME_DIAG",
+    "DOCUMENT_PARSER_3_REGRESSIONI_SRC",
+    "FIX_3_REGRESSIONI_INPUT",
+    "FIX_3_REGRESSIONI_INPUT_EXTRACTED",
+    "**/*.bak",
+    "**/*.before-*"
+  ]
+}

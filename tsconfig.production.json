@@ -1,0 +1,36 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "store/**/*.ts",
+    "store/**/*.tsx",
+    "types/**/*.ts",
+    "types/**/*.tsx",
+    "i18n/**/*.ts",
+    "i18n/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "android",
+    "tests",
+    "scripts",
+    ".tmp-qa",
+    ".backup-worktrees",
+    "backup-*",
+    "**/*.old",
+    "**/* - backup.tsx",
+    "supabase/functions",
+    "lib/qa-latest-fixtures.ts",
+    "lib/parser-ml/**"
+  ]
+}

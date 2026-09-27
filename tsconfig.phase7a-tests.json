@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "tests/production-logging.test.ts",
+    "lib/safe-runtime-logger.ts",
+    "supabase/functions/_shared/safe-logging.ts"
+  ]
+}

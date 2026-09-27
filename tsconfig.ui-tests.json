@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "lib/ui-tokens.ts",
+    "lib/ui-layout.ts",
+    "lib/ui-system.ts",
+    "lib/ui-native-policy.ts",
+    "lib/contact-export-sort.ts",
+    "lib/document-type-filters.ts",
+    "lib/document-search.ts",
+    "types/index.ts",
+    "tests/ui-colors.test.ts",
+    "tests/ui-responsive-layout.test.ts",
+    "tests/ui-visual-system.test.ts",
+    "tests/ui-accessibility-contract.test.ts",
+    "tests/ui-native-policy.test.ts",
+    "tests/confidence-badge.test.ts",
+    "tests/ui-real-device-theme.test.ts",
+    "tests/contact-export-sort.test.ts",
+    "tests/document-filter-ui.test.ts"
+  ]
+}

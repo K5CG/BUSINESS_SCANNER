@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "tests/exclusive-processing.test.ts",
+    "lib/exclusive-operation-gate.ts",
+    "lib/guarded-operation.ts",
+    "lib/asset-persistence-core.ts"
+  ]
+}

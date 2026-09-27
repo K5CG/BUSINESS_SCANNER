@@ -1,0 +1,2332 @@
+import type {
+  DocumentEvidence,
+  DocumentLayoutLine,
+  StructuredAddress,
+  StructuredDocumentMetadata,
+  StructuredDocumentPage,
+  StructuredDocumentType,
+  StructuredParty,
+  StructuredVehicleSection,
+} from './document-structure';
+import { documentEvidence, normalizeDocumentText } from './document-structured-evidence';
+import {
+  findDocumentLabel,
+  inferCanonicalDocumentType,
+  matchesDocumentLabel,
+  normalizeDocumentLabel,
+  type CanonicalCommercialDocumentType,
+} from './document-label-dictionary';
+import { findSlashDocumentNumber, isDocumentTypeHeaderText, isTaxOrFiscalLabelText, repairDocumentNumberPrefixOcr } from './ocr-normalize';
+import { looksLikeInternationalTaxIdentifier, parseInternationalDate } from './document-international-values';
+import { extractInlineDocumentNumberDate, hasInlineDocumentNumberDate } from './document-inline-date';
+import { detectDocumentTableColumnFast } from './document-items-totals';
+import { layoutDeadlineExceeded, logMetadataPerf, METADATA_CHECK_EVERY } from './structured-layout-runtime';
+import {
+  hasStrongIssuerLegalForm,
+  hasWeakSaOnlyLegalForm,
+  isPaymentSectionContext,
+  isRejectedIssuerName,
+  scoreIssuerCandidate,
+} from './document-issuer-model';
+import {
+  isDocumentFieldHeading,
+  isImplausibleOrganizationName,
+  isLegalSuffixOnly,
+  isPartyLabelOnly,
+  isPluralOrCategoryCustomerHeading,
+  isSalesContactLabel,
+  isShortBrandOrganizationToken,
+  looksLikeAddressLikeOrganizationName,
+  looksLikeDeliveryRequestOrDateField,
+  looksLikePartySectionHeading as isPartySectionHeading,
+  looksLikeOcrGarbageOrganization,
+  organizationNameAllowed,
+  organizationQualityScore,
+  type PartyNameEvidence,
+  resolveExclusivePartyRoles,
+  samePartyName,
+} from './document-party-roles';
+import { organizationNameFromLine, resolvePartyBlocksFromLayout } from './document-party-blocks';
+import { isDevLogEnabled } from './release-diagnostics';
+import { classifyDateLabelText, resolveDocumentDateRoles } from './document-date-roles';
+import { logQaDocument } from './qa-document-logging';
+import type { DocumentLanguage } from './document-label-dictionary';
+
+export interface DocumentIdentityExtraction {
+  metadata: StructuredDocumentMetadata;
+  issuer?: StructuredParty;
+  customer?: StructuredParty;
+  recipient?: StructuredParty;
+  prospect?: StructuredParty;
+  vehicle?: StructuredVehicleSection;
+  reasons: string[];
+  requiresReview: boolean;
+}
+
+const ADDRESS_SIGNAL = /\b(via|viale|piazza|corso|largo|strada|borgo|contrada|road|street|avenue|rue|boulevard|chemin|straße|strasse|weg|platz|calle|avenida|plaza)\b/i;
+const LEGAL_FORM = /\b(s\.?r\.?l\.?|s\.?p\.?a\.?|s\.?a\.?s\.?|s\.?n\.?c\.?|sarl|sa|sas|ltd\.?|gmbh|ag|bv|sl|inc\.?)\b/i;
+const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+const WEBSITE = /(?:https?:\/\/|www\.)[^\s]+/i;
+const IBAN = /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/i;
+const BIC = /\b[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/;
+
+function looksLikePartySectionHeading(value: string): boolean {
+  return isPartySectionHeading(value);
+}
+
+function looksLikePartyFieldLabel(value: string): boolean {
+  const folded = normalizeDocumentText(value).replace(/[:]+$/, '').trim();
+  if (/^(?:sede\s+legale(?:\s+e\s+operativa)?|sede\s+operativa|registered\s+office|head\s+office|legal\s+seat|indirizzo|address)$/i.test(folded)) {
+    return true;
+  }
+  if (/\btipo\s+(?:doc\w*|pagament\w*|chiusur\w*)\b/i.test(folded) && !LEGAL_FORM.test(value)) {
+    return true;
+  }
+  if (/^(?:fatturare\s+a|bill[\s\-]*to|ship[\s\-]*to|consegnare\s+a)\s*(?:\/.*)?$/i.test(folded)) {
+    return true;
+  }
+  return false;
+}
+
+function looksLikeIdentifierNotPartyName(value: string): boolean {
+  const compact = value.replace(/\s/g, '');
+  if (LEGAL_FORM.test(value)) return false;
+  if (value.split(/\s+/).filter(Boolean).length >= 3 && /[A-Za-z\u00c0-\u024f]{3,}/.test(value)) return false;
+  if (/\b(?:po|ref|rif)\b/i.test(value) && /\d/.test(value)) return true;
+  if (
+    /^[A-Z0-9]+(?:[-/][A-Z0-9]+){1,4}$/i.test(compact) &&
+    /\d/.test(compact) &&
+    compact.length >= 6 &&
+    compact.length <= 32
+  ) {
+    const letters = compact.replace(/[^A-Za-z]/g, '');
+    const digits = compact.replace(/\D/g, '');
+    return digits.length >= 3 && letters.length <= 12;
+  }
+  return false;
+}
+
+function looksLikeRejectedPartyValue(value: string): boolean {
+  const text = value.trim();
+  const compact = text.replace(/[\s.-]/g, '');
+  if (isPartyLabelOnly(text) || isLegalSuffixOnly(text) || isDocumentFieldHeading(text)) return true;
+  if (/\b(?:iban|t?ban|bic|swift)\b/i.test(text)) return true;
+  if (/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/i.test(compact)) return true;
+  if (/^(?:rif\.?\s*cliente|customer\s+ref\.?|your\s+reference|riferimento\s+cliente|bill[\s\-]*to|ship[\s\-]*to|fatturare a|cliente|customer|client|lieferadresse)\s*(?:\/.*)?$/i.test(text)) {
+    return true;
+  }
+  if (looksLikePartySectionHeading(text) || looksLikePartyFieldLabel(text)) return true;
+  if (looksLikeDeliveryRequestOrDateField(text) || looksLikeAddressLikeOrganizationName(text)) return true;
+  if (looksLikeIdentifierNotPartyName(text)) return true;
+  if (/^\d[\d\s.,]*\d$/.test(text) && /\d/.test(text)) return true;
+  return false;
+}
+
+/** Labels, identifiers and fiscal tokens must never become a party name. */
+export function isImplausiblePartyName(value: string): boolean {
+  const cleaned = cleanPartyName(value);
+  return !cleaned
+    || looksLikeRejectedPartyValue(cleaned)
+    || !isPartyNameCandidate(cleaned)
+    || isRejectedIssuerName(value)
+    || isRejectedIssuerName(cleaned);
+}
+
+function isPlausibleDocumentIban(candidate: string, lineText: string): boolean {
+  const normalized = candidate.replace(/\s/g, '').toUpperCase();
+  if (normalized.length === 17 && /^[A-Z0-9]{17}$/.test(normalized) && !/^IT\d{2}/.test(normalized)) {
+    return false;
+  }
+  if (/\b(?:telaio|vin|immatricolazione)\b/i.test(lineText)) return false;
+  return (
+    /\bIBAN\b/i.test(lineText) ||
+    /\b(?:banca|bank|banque|banco|bankverbindung)\b/i.test(lineText)
+  );
+}
+
+const isStandaloneDocumentLabel = (value: string, concept: 'customer' | 'recipient'): boolean => {
+  const trimmed = value.trim().replace(/[:\s]+$/, '');
+  if (!trimmed || trimmed.length > 48) return false;
+  const found = findDocumentLabel(trimmed, [concept]);
+  if (!found) return false;
+  return normalizeDocumentLabel(trimmed) === normalizeDocumentLabel(found.value);
+};
+const hasExplicitInlineLabel = (value: string, concept: 'customer' | 'recipient') => {
+  const separator = value.indexOf(':');
+  return separator > 0 && isStandaloneDocumentLabel(value.slice(0, separator), concept);
+};
+const isCustomerAnchorText = (value: string) => {
+  if (isSalesContactLabel(value) || isPluralOrCategoryCustomerHeading(value)) return false;
+  return isStandaloneDocumentLabel(value, 'customer') ||
+    isStandaloneDocumentLabel(value, 'recipient') || hasExplicitInlineLabel(value, 'customer') ||
+    hasExplicitInlineLabel(value, 'recipient') || /^\s*(?:spettabile|spettable|spett\.?\s*le)\b/i.test(value) ||
+    /^prospect\s*:?/i.test(value.trim()) ||
+    /^(?:cliente|customer|bill[\s\-]*to|fatturare\s+a|intestazione(?:\s+fattura)?)\s*(?:\/\s*.+)?$/i.test(value.trim()) ||
+    /\b(?:datos del cliente|fatturare a|bill[\s\-]*to|ship[\s\-]*to|intestazione\s+fattura|an\s*:)\b/i.test(normalizeDocumentText(value));
+};
+const isRecipientAnchorText = (value: string) => isStandaloneDocumentLabel(value, 'recipient') ||
+  hasExplicitInlineLabel(value, 'recipient');
+
+const RE_DOC_NUMBER_LABEL = /\b(?:numero|number|nr\.?|n[°º.]?\s*(?:documento|preventivo|offerta|ordine|document|quotation|invoice))\b/i;
+const DOCUMENT_NUMBER_LABEL_CACHE = new Map<string, boolean>();
+const PARTY_NAME_CANDIDATE_CACHE = new Map<string, boolean>();
+const RE_METADATA_DATE_LABEL = /\b(?:data|date|datum|fecha|scadenza|due date|validit[aà]|valid until)\b/i;
+
+export function resetDocumentPartiesCaches(): void {
+  DOCUMENT_NUMBER_LABEL_CACHE.clear();
+  PARTY_NAME_CANDIDATE_CACHE.clear();
+}
+
+function inferDocumentTypeFast(text: string): ReturnType<typeof inferCanonicalDocumentType> {
+  // The canonical dictionary is already bounded/cached and is more complete than
+  // the historical regex gate.  Using the gate here made valid multilingual
+  // labels (for example order confirmations) unreachable even though the
+  // dictionary knew them.
+  return inferCanonicalDocumentType(text);
+}
+
+function isPartyScanBoundary(
+  text: string,
+  isTableColumn: (value: string) => boolean,
+  inferDocumentType: (value: string) => ReturnType<typeof inferCanonicalDocumentType>,
+): boolean {
+  const normalized = normalizeDocumentText(text);
+  if (inferDocumentType(text)) return true;
+  if (RE_DOC_NUMBER_LABEL.test(normalized)) return true;
+  if (RE_METADATA_DATE_LABEL.test(normalized)) return true;
+  if (isTableColumn(text)) return true;
+  if (ADDRESS_SIGNAL.test(text)) return true;
+  if (text.trim().length > 72) return true;
+  if (/\b\d{5}\b|p\.?\s*iva|c\.?f\.?|\b(?:[0o]ggetto|subject|cup|cig|riferimento)\s*:/i.test(text)) return true;
+  if (/(?:^|[,\s])\d+[A-Z]?(?:\/[A-Z0-9]+)?\b/i.test(text)) return true;
+  return false;
+}
+
+interface DocumentMetadataContext {
+  pages: readonly StructuredDocumentPage[];
+  allLines: DocumentLayoutLine[];
+  metadataLines: DocumentLayoutLine[];
+  linesByPage: Map<number, DocumentLayoutLine[]>;
+  tableLineIds: Set<string>;
+  primaryLanguage?: DocumentLanguage;
+  deadline?: number;
+  normalizedText: Map<string, string>;
+  tableColumnCache: Map<string, boolean>;
+  documentTypeCache: Map<string, ReturnType<typeof inferCanonicalDocumentType>>;
+  isTableColumn(text: string): boolean;
+  inferDocumentType(text: string): ReturnType<typeof inferCanonicalDocumentType>;
+  normalize(text: string): string;
+  timedOut(): boolean;
+}
+
+function buildMetadataContext(
+  pages: readonly StructuredDocumentPage[],
+  options?: { primaryLanguage?: DocumentLanguage; deadline?: number },
+): DocumentMetadataContext {
+  const tableLineIds = new Set(
+    pages.flatMap((page) => page.zones
+      .filter((zone) => zone.classification === 'items_table')
+      .flatMap((zone) => zone.lineIds)),
+  );
+  const allLines = pages.flatMap((page) => page.lines);
+  const linesByPage = new Map<number, DocumentLayoutLine[]>();
+  for (const line of allLines) {
+    const bucket = linesByPage.get(line.pageIndex);
+    if (bucket) bucket.push(line);
+    else linesByPage.set(line.pageIndex, [line]);
+  }
+  const normalizedText = new Map<string, string>();
+  const tableColumnCache = new Map<string, boolean>();
+  const documentTypeCache = new Map<string, ReturnType<typeof inferCanonicalDocumentType>>();
+  const normalize = (text: string) => {
+    const hit = normalizedText.get(text);
+    if (hit !== undefined) return hit;
+    const value = normalizeDocumentText(text);
+    normalizedText.set(text, value);
+    return value;
+  };
+  const isTableColumn = (text: string) => {
+    const hit = tableColumnCache.get(text);
+    if (hit !== undefined) return hit;
+    const value = !!detectDocumentTableColumnFast(text);
+    tableColumnCache.set(text, value);
+    return value;
+  };
+  const inferDocumentType = (text: string) => {
+    const hit = documentTypeCache.get(text);
+    if (hit !== undefined || documentTypeCache.has(text)) return hit;
+    const value = inferDocumentTypeFast(text);
+    documentTypeCache.set(text, value);
+    return value;
+  };
+  return {
+    pages,
+    allLines,
+    metadataLines: allLines.filter((line) => !tableLineIds.has(line.id)),
+    linesByPage,
+    tableLineIds,
+    primaryLanguage: options?.primaryLanguage,
+    deadline: options?.deadline,
+    normalizedText,
+    tableColumnCache,
+    documentTypeCache,
+    isTableColumn,
+    inferDocumentType,
+    normalize,
+    timedOut: () => layoutDeadlineExceeded(options?.deadline),
+  };
+}
+
+function editDistance(left: string, right: string): number {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1),
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[right.length];
+}
+
+function repairCorroboratedPartyName(value: string, lines: readonly DocumentLayoutLine[]): string {
+  let repaired = value.trim();
+  const firstWord = normalizeDocumentText(repaired).match(/^[a-z]+/)?.[0];
+  if (firstWord && editDistance(firstWord, 'associazione') <= 3) {
+    repaired = repaired.replace(/^\S+/, 'Associazione');
+  }
+  const placeCandidates = lines.flatMap((line) => {
+    const match = line.text.match(/\b\d{5}\s+([A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f'\-]{2,30})\b/);
+    return match?.[1] ? [match[1]] : [];
+  });
+  const words = repaired.match(/[A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f'\-]*/g) ?? [];
+  const lastWord = words.at(-1);
+  const place = lastWord && placeCandidates
+    .filter((candidate) => editDistance(normalizeDocumentText(lastWord), normalizeDocumentText(candidate)) <= 2)
+    .sort((left, right) => {
+      const occurrences = (candidate: string) => lines.filter((line) =>
+        normalizeDocumentText(line.text).includes(normalizeDocumentText(candidate))).length;
+      return occurrences(right) - occurrences(left) ||
+        editDistance(normalizeDocumentText(lastWord), normalizeDocumentText(left)) -
+          editDistance(normalizeDocumentText(lastWord), normalizeDocumentText(right));
+    })[0];
+  if (lastWord && place) {
+    const normalizedPlace = place.charAt(0).toUpperCase() + place.slice(1).toLocaleLowerCase('it-IT');
+    repaired = repaired.replace(new RegExp(`${lastWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), normalizedPlace);
+  }
+  if ((repaired.match(/["“”]/g)?.length ?? 0) % 2 === 1) repaired += '"';
+  return repaired;
+}
+
+function reconcileDuplicatePartyNames(
+  parties: readonly (StructuredParty | undefined)[],
+  lines: readonly DocumentLayoutLine[],
+): void {
+  const candidates = parties.filter((party): party is StructuredParty => !!party?.name?.normalizedValue);
+  if (candidates.length < 2) return;
+  const repaired = candidates.map((party) => ({
+    party,
+    value: repairCorroboratedPartyName(party.name!.normalizedValue!, lines),
+  }));
+  const [first, second] = repaired;
+  const firstCompact = normalizeDocumentText(first.value).replace(/[^a-z0-9]/g, '');
+  const secondCompact = normalizeDocumentText(second.value).replace(/[^a-z0-9]/g, '');
+  const similarityLimit = Math.max(3, Math.floor(Math.max(firstCompact.length, secondCompact.length) * 0.3));
+  const samePostalCode = first.party.address?.postalCode?.normalizedValue &&
+    first.party.address.postalCode.normalizedValue === second.party.address?.postalCode?.normalizedValue;
+  if (!samePostalCode || editDistance(firstCompact, secondCompact) > similarityLimit) return;
+  const selected = [...repaired].sort((left, right) => left.value.length - right.value.length)[0];
+  const sourceLines = candidates.flatMap((party) => party.name?.sourceLineIds ?? [])
+    .map((id) => lines.find((line) => line.id === id))
+    .filter((line): line is DocumentLayoutLine => !!line);
+  for (const candidate of candidates) {
+    candidate.name = evidenceString(
+      candidates.map((party) => party.name?.rawValue).filter(Boolean).join(' | '),
+      selected.value,
+      sourceLines,
+      'duplicate_party_columns_consensus',
+    );
+    candidate.requiresReview = true;
+  }
+}
+
+function zoneLines(
+  pages: readonly StructuredDocumentPage[],
+  kinds: readonly StructuredDocumentPage['zones'][number]['classification'][],
+): DocumentLayoutLine[] {
+  const ids = new Set(
+    pages.flatMap((page) => page.zones.filter((zone) => kinds.includes(zone.classification)).flatMap((zone) => zone.lineIds)),
+  );
+  return pages.flatMap((page) => page.lines).filter((line) => ids.has(line.id));
+}
+
+function cleanPartyName(value: string): string {
+  const cleaned = value
+    .replace(/^\s*(?:cliente|destinatario|spettabile|spettable|spett\.?\s*le|customer\b|client\b|bill[\s\-]*to|sold[\s\-]*to|buyer|ship[\s\-]*to|consignee|factur[ée]\s+[àa]|kunde|rechnung an|lieferadresse|warenempf[äa]nger|comprador|facturar a|direcci[óo]n de entrega|committente|prospect)\s*[:\-]?\s*/i, '')
+    .replace(/\s*[-,]?\s*(?:p\.?\s*iva|partita\s+iva|vat|tva|ust\.?-?idnr\.?|mwst\.?|nif|cif)\s*[:\-]?\s*[A-Z]{0,3}[A-Z0-9][A-Z0-9\s.\-]{7,16}.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .replace(/([A-Z\u00c0-\u024f])0(?=[A-Z\u00c0-\u024f])/g, '$1O')
+    .replace(/([A-Z\u00c0-\u024f]{4,})EDI\b/g, '$1 E DI')
+    .replace(/^([A-Za-z\u00c0-\u024f])\1(?=[A-Za-z\u00c0-\u024f]{2})/i, '$1')
+    .trim();
+  const legalMatch = cleaned.match(/^(.+?\b(?:s\.?r\.?l\.?|s\.?p\.?a\.?|s\.?a\.?s\.?|s\.?n\.?c\.?|sarl|sa|sas|ltd\.?|gmbh|ag|bv|sl|inc\.?))(.*)$/i);
+  const legalSuffix = legalMatch?.[2]?.trim();
+  const legalName = legalMatch
+    ? legalSuffix
+      && /^-\s*[A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f '&.-]{2,80}$/.test(legalSuffix)
+      && !ADDRESS_SIGNAL.test(legalSuffix)
+      && !/\b(?:filiale|agenzia|sucursal|bank\s+branch)\b/i.test(legalSuffix)
+      ? `${legalMatch[1]} ${legalSuffix}`
+      : legalMatch[1]
+    : cleaned;
+  const letters = [...legalName].filter((character) => /[A-Za-z\u00c0-\u024f]/.test(character));
+  const uppercase = letters.filter((character) => character === character.toUpperCase()).length;
+  return letters.length >= 5 && uppercase / letters.length >= 0.8 ? legalName.toUpperCase() : legalName;
+}
+
+function partyNameEvidenceFromLines(
+  lines: readonly DocumentLayoutLine[],
+  address?: StructuredAddress,
+  extra?: { vat?: boolean; phone?: boolean; email?: boolean },
+): PartyNameEvidence {
+  const joined = lines.map((line) => line.text).join(' ');
+  return {
+    hasAddress: !!address?.full || ADDRESS_SIGNAL.test(joined),
+    hasPostal: /\b\d{4,5}\b/.test(joined),
+    hasCity: /\b(?:via|rue|street|straße|strasse|calle|avenue|road|plaza|piazza)\b/i.test(joined),
+    hasVat: !!extra?.vat || /\b(?:p\.?\s*iva|vat|tva|mwst|nif|cif)\b/i.test(joined),
+    hasPhone: !!extra?.phone || /\b(?:tel|phone|tel[eé]fono)\b/i.test(joined),
+    hasEmail: !!extra?.email || EMAIL.test(joined),
+    hasWebsite: WEBSITE.test(joined),
+    hasLegalSuffix: LEGAL_FORM.test(joined),
+  };
+}
+
+function computePartyNameCandidate(value: string): boolean {
+  const text = value.trim();
+  if (text.length < 3 || text.length > 120) {
+    if (!(text.length === 2 && /[A-Za-z]/.test(text) && /\d/.test(text))) return false;
+  }
+  if (isLegalSuffixOnly(text) || isDocumentFieldHeading(text) || isPartyLabelOnly(text)) return false;
+  if (looksLikeDeliveryRequestOrDateField(text) || looksLikeAddressLikeOrganizationName(text)) return false;
+  if (isDocumentNumberLabelText(text) || RE_METADATA_DATE_LABEL.test(normalizeDocumentText(text)) || inferDocumentTypeFast(text)) {
+    return false;
+  }
+  if (/^(?:unit price|payment terms|qty|quantity|description|line total|partita|descripci[oó]n del suministro|referente|ansprechpartner|sales contact|payment|discount|sku|codice|code|forma de pago|plazo de entrega|descripci[oó]n)$/i.test(text)) return false;
+  if (isCustomerAnchorText(text) || isRecipientAnchorText(text)) return false;
+  if (/\b(?:descripci[oó]n del suministro|description of supply|lieferumfang)\b/i.test(text)) return false;
+  if (isTaxOrFiscalLabelText(text) || isDocumentTypeHeaderText(text)) return false;
+  if (ADDRESS_SIGNAL.test(text) || EMAIL.test(text) || WEBSITE.test(text) || IBAN.test(text)) return false;
+  if (looksLikeRejectedPartyValue(text)) return false;
+  if (/\b(?:p\.?\s*iva|vat|tva|mwst|ust|nif|cif|codice fiscale|c\.?f\.?|tel|fax|cap)\b/i.test(text)) return false;
+  if (/^(?:atenci[oó]n|tel[eé]fono|phone|email|forma de pago|plazo de entrega|comercial|referente|attention)\s*:?\s*$/i.test(text)) return false;
+  if (/\([^)]*(?:presidente|director|manager|contacto|contact|president)\)/i.test(text)) return false;
+  if (/^[A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f' -]{1,40},\s*[A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f' -]{2,40}$/.test(text)) return false;
+  if (text.split(/\s+/).length > 6) return false;
+  if (text.split(/\s+/).length === 1 && /^(?:france|italy|italia|spain|espa[nñ]a|germany|deutschland|switzerland|suisse|europe|europa)$/i.test(text)) {
+    return false;
+  }
+  if (/\b(?:instalaci[oó]n|suministro e|sistema fotovoltaico)\b/i.test(text)) return false;
+  if (/^[a-z\u00e0-\u024f]/.test(text) && /[.!?]$/.test(text.trim())) return false;
+  if (isShortBrandOrganizationToken(text)) return true;
+  if (/(?:^|[,\s])\d+[A-Z]?(?:\/[A-Z0-9]+)?\b/i.test(text)) return false;
+  return /[A-Za-z\u00c0-\u024f]{2}/.test(text);
+}
+
+function isPartyNameCandidate(value: string): boolean {
+  const key = value.trim();
+  const cached = PARTY_NAME_CANDIDATE_CACHE.get(key);
+  if (cached !== undefined) return cached;
+  const result = computePartyNameCandidate(value);
+  if (PARTY_NAME_CANDIDATE_CACHE.size >= 2048) PARTY_NAME_CANDIDATE_CACHE.clear();
+  PARTY_NAME_CANDIDATE_CACHE.set(key, result);
+  return result;
+}
+
+
+function compactOrganizationToken(value: string): string {
+  return normalizeDocumentText(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function tokenMatchesDomainRoot(compact: string, root: string): boolean {
+  if (!compact || !root) return false;
+  return compact === root
+    || (compact.endsWith(root) && compact.length - root.length === 1)
+    || (root.endsWith(compact) && root.length - compact.length === 1);
+}
+
+function issuerNameCorroboratedByDomain(
+  lines: readonly DocumentLayoutLine[],
+): { line: DocumentLayoutLine; name: string } | undefined {
+  const domainRoots = lines.flatMap((line) =>
+    (line.text.toLowerCase().match(/[a-z0-9-]+\.(?:com|it|eu|net|org|de|ch)\b/g) ?? [])
+      .map((domain) => domain.split('.')[0])
+      .map((root) => root.replace(/(?:group|holding|company)$/i, ''))
+      .filter((root) => root.length >= 3),
+  );
+  if (domainRoots.length === 0) return undefined;
+
+  for (const line of lines) {
+    const cleaned = cleanPartyName(line.text);
+    const repaired = cleaned.replace(/^([A-Za-z\u00c0-\u024f])\1(?=[A-Za-z\u00c0-\u024f]{2})/i, '$1');
+    if (repaired.split(/\s+/).length > 4) continue;
+    const letters = [...repaired].filter((character) => /[A-Za-z\u00c0-\u024f]/.test(character));
+    const uppercase = letters.filter((character) => character === character.toUpperCase()).length;
+    if (letters.length < 3 || uppercase / letters.length < 0.75) continue;
+    const compact = compactOrganizationToken(repaired);
+    const domainRoot = domainRoots.find((root) => tokenMatchesDomainRoot(compact, root));
+    if (!domainRoot) continue;
+    if (
+      !isPartyNameCandidate(repaired)
+      && !isShortBrandOrganizationToken(repaired)
+      && !isPartyNameCandidate(cleaned)
+    ) {
+      continue;
+    }
+    return { line, name: repaired };
+  }
+  return undefined;
+}
+
+function nearestGeometricValue(
+  lines: readonly DocumentLayoutLine[],
+  labelPattern: RegExp,
+  isValue: (value: string) => boolean,
+): { label: DocumentLayoutLine; line: DocumentLayoutLine; value: string } | undefined {
+  for (const label of lines.filter((line) => labelPattern.test(normalizeDocumentText(line.text)))) {
+    const candidates = lines.filter((line) => {
+      const value = line.text.trim();
+      if (line === label || line.pageIndex !== label.pageIndex || !isValue(value)) return false;
+      if (!label.boundingBox || !line.boundingBox) {
+        return line.readingOrder > label.readingOrder && line.readingOrder - label.readingOrder <= 3;
+      }
+      const labelCenterX = label.boundingBox.x + label.boundingBox.width / 2;
+      const valueCenterX = line.boundingBox.x + line.boundingBox.width / 2;
+      const sameColumn = Math.abs(valueCenterX - labelCenterX) <= Math.max(180, label.boundingBox.width * 1.5);
+      const directlyBelow = line.boundingBox.y >= label.boundingBox.y &&
+        line.boundingBox.y - label.boundingBox.y <= Math.max(100, label.boundingBox.height * 4);
+      const sameRowRight = line.boundingBox.x >= label.boundingBox.x + label.boundingBox.width * 0.75 &&
+        Math.abs(line.boundingBox.y - label.boundingBox.y) <= Math.max(35, label.boundingBox.height * 1.5);
+      return (sameColumn && directlyBelow) || sameRowRight;
+    }).sort((left, right) => {
+      if (!label.boundingBox || !left.boundingBox || !right.boundingBox) return left.readingOrder - right.readingOrder;
+      const distance = (line: DocumentLayoutLine) => Math.hypot(
+        line.boundingBox!.x + line.boundingBox!.width / 2 - (label.boundingBox!.x + label.boundingBox!.width / 2),
+        line.boundingBox!.y - label.boundingBox!.y,
+      );
+      return distance(left) - distance(right);
+    });
+    const candidate = candidates[0];
+    if (candidate) return { label, line: candidate, value: candidate.text.trim() };
+  }
+  return undefined;
+}
+
+function valueAroundGeometricLabel(
+  lines: readonly DocumentLayoutLine[],
+  label: DocumentLayoutLine | undefined,
+  isValue: (value: string) => boolean,
+  maxDistance = 180,
+): { label: DocumentLayoutLine; line: DocumentLayoutLine; value: string } | undefined {
+  if (!label) return undefined;
+  const candidates = lines.filter((line) => {
+    if (line === label || line.pageIndex !== label.pageIndex || !isValue(line.text.trim())) return false;
+    if (!label.boundingBox || !line.boundingBox) return Math.abs(line.readingOrder - label.readingOrder) <= 4;
+    const verticalDistance = Math.abs(line.boundingBox.y - label.boundingBox.y);
+    const horizontalGap = line.boundingBox.x >= label.boundingBox.x + label.boundingBox.width
+      ? line.boundingBox.x - (label.boundingBox.x + label.boundingBox.width)
+      : label.boundingBox.x >= line.boundingBox.x + line.boundingBox.width
+        ? label.boundingBox.x - (line.boundingBox.x + line.boundingBox.width)
+        : 0;
+    const sameRow = verticalDistance <= Math.max(35, label.boundingBox.height * 1.5);
+    const sameColumn = Math.abs(
+      line.boundingBox.x + line.boundingBox.width / 2 - (label.boundingBox.x + label.boundingBox.width / 2),
+    ) <= maxDistance;
+    return verticalDistance <= maxDistance && ((sameRow && horizontalGap <= maxDistance) || sameColumn);
+  }).sort((left, right) => {
+    if (!label.boundingBox || !left.boundingBox || !right.boundingBox) {
+      return Math.abs(left.readingOrder - label.readingOrder) - Math.abs(right.readingOrder - label.readingOrder);
+    }
+    const distance = (line: DocumentLayoutLine) => Math.hypot(
+      line.boundingBox!.x - label.boundingBox!.x,
+      line.boundingBox!.y - label.boundingBox!.y,
+    );
+    const columnScore = (line: DocumentLayoutLine) => {
+      if (!label.boundingBox || !line.boundingBox) return 1;
+      const sameColumn = Math.abs(
+        line.boundingBox.x + line.boundingBox.width / 2 - (label.boundingBox.x + label.boundingBox.width / 2),
+      ) <= Math.max(40, label.boundingBox.width * 0.75);
+      const below = line.boundingBox.y >= label.boundingBox.y;
+      const immediatelyBelow = below &&
+        line.boundingBox.y - label.boundingBox.y <= Math.max(80, label.boundingBox.height * 3.5);
+      const sameRow = Math.abs(line.boundingBox.y - label.boundingBox.y) <= Math.max(35, label.boundingBox.height * 1.5);
+      if (sameRow && line.boundingBox.x > label.boundingBox.x) return 0;
+      if (sameColumn && immediatelyBelow) return 0;
+      if (sameColumn && below) return 1;
+      return 2;
+    };
+    return columnScore(left) - columnScore(right) || distance(left) - distance(right);
+  });
+  return candidates[0] ? { label, line: candidates[0], value: candidates[0].text.trim() } : undefined;
+}
+
+function isRepeatedTableCode(value: string, lines: readonly DocumentLayoutLine[]): boolean {
+  const compact = value.trim();
+  if (!/^\d{1,4}$/.test(compact)) return false;
+  let hits = 0;
+  for (const line of lines) {
+    if (line.text.trim() === compact) {
+      hits += 1;
+      if (hits >= 3) return true;
+    }
+  }
+  return false;
+}
+
+function slashDocumentNumberFromLines(
+  lines: readonly DocumentLayoutLine[],
+): { line: DocumentLayoutLine; value: string } | undefined {
+  const value = findSlashDocumentNumber(lines.map((line) => line.text).join('\n'));
+  if (!value) return undefined;
+  const compact = value.replace(/\s+/g, '');
+  const line = lines.find((entry) => entry.text.replace(/\s+/g, '').includes(compact) || entry.text.includes(value));
+  return line ? { line, value: compact } : undefined;
+}
+
+function looksLikeItemSkuNotDocumentNumber(value: string): boolean {
+  const compact = value.trim();
+  if (/^[A-Z]{2,8}-[A-Z]{2,10}-\d{1,4}$/i.test(compact)) return true;
+  if (/^[A-Z]{2,6}\d{6,}[A-Z0-9]*$/i.test(compact) && compact.length >= 10) return true;
+  return false;
+}
+
+function isStrongDocumentNumberLabel(text: string): boolean {
+  return /\b(?:quotation\s+no\.?|quote\s+no\.?|order(?:\s+confirmation)?\s+no\.?|invoice\s+no\.?|preventivo\s+n\.?|ordine\s+n\.?|fattura\s+n\.?|n\.\s*fattura|n\.\s*documento|numero\s+documento|document\s+no\.?|document\s+number|angebotsnummer|auftragsnummer|rechnungsnummer|auftragsbest(?:ätigung)?(?:\s*nr\.?)?|n[°º]\s*(?:devis|commande|facture|presupuesto|pedido)|facture\s+n[°º.]|devis\s+n[°º.]|presupuesto\s+n[°º.]?)\b/i
+    .test(normalizeDocumentText(text));
+}
+
+function isCustomerCodeContext(
+  line: DocumentLayoutLine,
+  lines: readonly DocumentLayoutLine[],
+): boolean {
+  return lines.some((other) => {
+    if (other.pageIndex !== line.pageIndex) return false;
+    if (!/^(?:cliente|cui[ae]nte|customer\s+code|codice\s+cliente|vostro\s+codice)\s*:?$/i.test(other.text.trim())) {
+      return false;
+    }
+    if (!other.boundingBox || !line.boundingBox) {
+      return Math.abs(other.readingOrder - line.readingOrder) <= 4;
+    }
+    const dx = Math.abs((line.boundingBox.x + line.boundingBox.width / 2) - (other.boundingBox.x + other.boundingBox.width / 2));
+    const dy = Math.abs(line.boundingBox.y - other.boundingBox.y);
+    return dx < 90 && dy < 80;
+  });
+}
+
+function isItemCodeColumnContext(
+  line: DocumentLayoutLine,
+  lines: readonly DocumentLayoutLine[],
+): boolean {
+  return lines.some((other) => {
+    if (other.pageIndex !== line.pageIndex) return false;
+    if (!matchesDocumentLabel(other.text, 'itemCode') && !/\b(?:item\s+code|product\s+code|sku|codice\s+art)/i.test(other.text)) {
+      return false;
+    }
+    if (!other.boundingBox || !line.boundingBox) {
+      return Math.abs(other.readingOrder - line.readingOrder) <= 12;
+    }
+    const dx = Math.abs((line.boundingBox.x + line.boundingBox.width / 2) - (other.boundingBox.x + other.boundingBox.width / 2));
+    const dy = Math.abs(line.boundingBox.y - other.boundingBox.y);
+    return dx < 80 && dy < 420;
+  });
+}
+
+function isCustomerReferenceContext(
+  line: DocumentLayoutLine,
+  lines: readonly DocumentLayoutLine[],
+): boolean {
+  const self = normalizeDocumentText(line.text);
+  if (/\b(?:referencia\s+cliente|riferimento\s+cliente|customer\s+ref(?:erence)?|rif\.?\s*cliente|your\s+reference)\b/i.test(self)) {
+    return true;
+  }
+  return lines.some((other) => {
+    if (other.pageIndex !== line.pageIndex) return false;
+    if (!/\b(?:referencia\s+cliente|riferimento\s+cliente|customer\s+ref(?:erence)?|rif\.?\s*cliente)\b/i.test(other.text)) {
+      return false;
+    }
+    if (!other.boundingBox || !line.boundingBox) {
+      return Math.abs(other.readingOrder - line.readingOrder) <= 3;
+    }
+    const dy = Math.abs(line.boundingBox.y - other.boundingBox.y);
+    return dy < 70;
+  });
+}
+
+function isDocumentNumberValue(value: string): boolean {
+  const compact = value.trim();
+  if (looksLikeInternationalTaxIdentifier(compact)) return false;
+  // A commercial document identifier must contain at least one digit.
+  // This blocks OCR fragments such as "AZIONALE" extracted from
+  // "ISTITUTO NAZIONALE..." while preserving mixed identifiers.
+  if (!/^[A-Z0-9][A-Z0-9/_.-]{1,30}$/i.test(compact) || !/\d/.test(compact)) return false;
+  if (/^(?:documento|pagina|page|preventivo|offerta|ordine|presupuesto|pres)$/i.test(compact)) return false;
+  if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(compact)) return false;
+  if (/^[A-Z]{2,5}-\d+[A-Z]-[A-Z]$/i.test(compact)) return false;
+  if (looksLikeItemSkuNotDocumentNumber(compact)) return false;
+  return true;
+}
+
+function evidenceString(
+  raw: string,
+  normalizedValue: string,
+  lines: readonly DocumentLayoutLine[],
+  reason: string,
+  valid = false,
+): DocumentEvidence<string> {
+  return documentEvidence({
+    rawValue: raw,
+    normalizedValue,
+    lines,
+    validationStatus: valid ? 'valid' : 'unverified',
+    reasons: [reason],
+    requiresReview: !valid,
+  });
+}
+
+function firstMatch(lines: readonly DocumentLayoutLine[], pattern: RegExp): { line: DocumentLayoutLine; value: string } | undefined {
+  for (const line of lines) {
+    const match = line.text.match(pattern);
+    if (match?.[1]) return { line, value: match[1].trim() };
+  }
+  return undefined;
+}
+
+function extractVat(lines: readonly DocumentLayoutLine[]): DocumentEvidence<string> | undefined {
+  for (const line of lines) {
+    const label = line.text.match(/\b(?:p\.?\s*iva|partita\s+iva|vat(?:\s+(?:no\.?|number|id))?|tva|n[°º]\s*tva|ust\.?-?idnr\.?|mwst\.?|nif|cif|uid)\b/i);
+    if (!label) continue;
+    const tail = line.text.slice((label.index ?? 0) + label[0].length);
+    // Prefer an explicit 11-digit Italian VAT observed anywhere after the VAT
+    // label. This handles combined labels such as "P.IVA e C.F. 008..." without
+    // swallowing the "e C.F." text into the identifier.
+    const italian = tail.match(/(?:^|\D)(?:IT\s*)?([0-9O](?:[ .-]?[0-9O]){10})(?![0-9O])/i);
+    if (italian?.[1]) {
+      const normalized = italian[1].toUpperCase().replace(/[ .-]/g, '').replace(/O/g, '0');
+      return evidenceString(italian[0].trim(), normalized, [line], 'italian_vat_after_combined_label', true);
+    }
+    const generic = tail.match(/([A-Z]{0,3}[A-Z0-9][A-Z0-9\s.\-]{7,18})\b/i)?.[1];
+    if (!generic) continue;
+    const compact = generic.toUpperCase().replace(/[ .-]/g, '');
+    const italianDigits = compact.replace(/^IT/, '').replace(/O/g, '0');
+    const normalized = /^(?:IT)?[0-9O]{11}$/.test(compact) ? italianDigits : compact;
+    if (!looksLikeInternationalTaxIdentifier(compact) && !/^\d{8,13}$/.test(normalized)) continue;
+    return evidenceString(generic, normalized, [line], 'international_vat_identifier_near_party_anchor', true);
+  }
+  return undefined;
+}
+
+function extractTaxCode(lines: readonly DocumentLayoutLine[]): DocumentEvidence<string> | undefined {
+  const found = firstMatch(lines, /\b(?:codice\s+fiscale|cod\.?\s*fisc\.?|c\.?f\.?)\s*[:\-]?\s*([A-Z0-9]{11,16})\b/i);
+  return found ? evidenceString(found.value, found.value.toUpperCase(), [found.line], 'tax_code_label') : undefined;
+}
+
+function extractAddress(lines: readonly DocumentLayoutLine[]): StructuredAddress | undefined {
+  const addressIndex = lines.findIndex((line) => ADDRESS_SIGNAL.test(line.text));
+  const addressAnchor = addressIndex >= 0 ? lines[addressIndex] : undefined;
+  const addressAnchorHasHouseNumber = addressAnchor
+    ? /(?:^|[,]\s)\d+[A-Z]?(?:\/[A-Z0-9]+)?\b/i.test(addressAnchor.text)
+    : false;
+  const continuationCandidates = addressAnchor && !addressAnchorHasHouseNumber ? lines.filter((line) => {
+    if (line === addressAnchor || /\b\d{5}\b/.test(line.text)) return false;
+    if (/\b(?:p\.?\s*iva|partita\s+iva|vat|tva|mwst|ust|nif|cif|tel|phone|fax|iban|bic|swift)\b/i.test(line.text)) return false;
+    if (!/(?:^|[,\s])\d+[A-Z]?(?:\/[A-Z0-9]+)?\b/i.test(line.text)) return false;
+    if (!addressAnchor.boundingBox || !line.boundingBox) return Math.abs(line.readingOrder - addressAnchor.readingOrder) <= 5;
+    return Math.hypot(
+      line.boundingBox.x - addressAnchor.boundingBox.x,
+      line.boundingBox.y - addressAnchor.boundingBox.y,
+    ) <= Math.max(420, addressAnchor.boundingBox.width * 3, addressAnchor.boundingBox.height * 4);
+  }).sort((first, second) => {
+    if (!addressAnchor.boundingBox || !first.boundingBox || !second.boundingBox) {
+      return Math.abs(first.readingOrder - addressAnchor.readingOrder) - Math.abs(second.readingOrder - addressAnchor.readingOrder);
+    }
+    const distance = (line: DocumentLayoutLine) => Math.hypot(
+      line.boundingBox!.x - addressAnchor.boundingBox!.x,
+      line.boundingBox!.y - addressAnchor.boundingBox!.y,
+    );
+    return distance(first) - distance(second);
+  }) : [];
+  const addressLines = addressAnchor ? [addressAnchor, ...continuationCandidates.slice(0, 2)] : [];
+  const addressLine = addressLines[0];
+  const postalLine = lines.find((line) => /\b\d{5}\b/.test(line.text));
+  if (!addressLine && !postalLine) return undefined;
+  const selected = [...new Set([...addressLines, postalLine].filter((line): line is DocumentLayoutLine => !!line))];
+  const raw = selected.map((line) => line.text).join(', ');
+  const postalMatch = raw.match(/\b(\d{5})\b/);
+  const cityAfterPostal = raw.match(/\b\d{5}\s+([A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f '\-]{1,50}?)(?:\s+|\s*\()([A-Z]{2})\)?\b/);
+  const cityBeforePostal = raw.match(/\b([A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f '\-]{1,50}?)\s+([A-Z]{2})\s*,?\s*(\d{5})\b/);
+  const city = cityAfterPostal?.[1]?.trim() ?? cityBeforePostal?.[1]?.trim();
+  const region = cityAfterPostal?.[2] ?? cityBeforePostal?.[2];
+  const streetValue = addressLines.map((line) => line.text.trim()).join(' ');
+  return {
+    full: evidenceString(raw, raw, selected, 'address_near_party_anchor'),
+    ...(addressLine ? { street: evidenceString(streetValue, streetValue, addressLines, 'street_signal') } : {}),
+    ...(postalMatch ? { postalCode: evidenceString(postalMatch[1], postalMatch[1], selected, 'postal_code_pattern', true) } : {}),
+    ...(city ? { city: evidenceString(city, city, selected, 'city_postal_relation') } : {}),
+    ...(region ? { region: evidenceString(region, region, selected, 'province_postal_relation', true) } : {}),
+  };
+}
+
+function extractContactFields(lines: readonly DocumentLayoutLine[]): Partial<StructuredParty> {
+  const emailLine = lines.find((line) => EMAIL.test(line.text));
+  const websiteLine = lines.find((line) => WEBSITE.test(line.text));
+  const phone = firstMatch(lines, /\b(?:tel(?:efono)?|phone)\s*[:.]?\s*(\+?[\d][\d\s().\/-]{6,})/i);
+  const ibanLine = lines.find((line) => {
+    const candidate = line.text.replace(/^\s*IBAN\s*:?\s*/i, '').replace(/\s/g, '');
+    if (!IBAN.test(candidate)) return false;
+    return isPlausibleDocumentIban(candidate, line.text);
+  });
+  const bicLine = lines.find((line) => /\b(?:bic|swift)\b/i.test(line.text) && BIC.test(line.text.toUpperCase()));
+  const bank = firstMatch(lines, /\b(?:bankverbindung|banca|banque|banco|bank)\b\s*[:\-]?\s*([A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f0-9 '&.\-]{2,80})/i);
+  const email = emailLine?.text.match(EMAIL)?.[0];
+  const website = websiteLine?.text.match(WEBSITE)?.[0];
+  const iban = ibanLine?.text.replace(/^\s*IBAN\s*:?\s*/i, '').replace(/\s/g, '').match(IBAN)?.[0];
+  const bic = bicLine?.text.toUpperCase().match(BIC)?.[0];
+  return {
+    ...(email && emailLine ? { email: evidenceString(email, email.toLowerCase(), [emailLine], 'email_pattern', true) } : {}),
+    ...(website && websiteLine ? { website: evidenceString(website, website.toLowerCase(), [websiteLine], 'website_pattern', true) } : {}),
+    ...(phone ? { phone: evidenceString(phone.value, phone.value.replace(/\s+/g, ' '), [phone.line], 'phone_label') } : {}),
+    ...(iban && ibanLine ? { iban: evidenceString(iban, iban.toUpperCase(), [ibanLine], 'iban_pattern', true) } : {}),
+    ...(bic && bicLine ? { bic: evidenceString(bic, bic, [bicLine], 'bic_pattern', true) } : {}),
+    ...(bank ? { bankName: evidenceString(bank.value, bank.value, [bank.line], 'multilingual_bank_name_label') } : {}),
+  };
+}
+
+function buildParty(
+  role: StructuredParty['role'],
+  lines: readonly DocumentLayoutLine[],
+  nameReason: string,
+  ctx: DocumentMetadataContext,
+): StructuredParty | undefined {
+  if (lines.length === 0) return undefined;
+  let nameLine: DocumentLayoutLine | undefined;
+  let nameLines: DocumentLayoutLine[] = [];
+  let name = '';
+  let domainCorroborated = false;
+  const sharedPartyNameEvidence = partyNameEvidenceFromLines(lines);
+  const honorific = lines.find((line) => /^\s*(?:spettabile|spettable|spett\.?\s*le)\s*[:\-]?\s*$/i.test(line.text));
+  if (honorific) {
+    const nearby = nearestGeometricValue(
+      lines,
+      /^\s*(?:spettabile|spettable|spett\.?\s*le)\s*[:\-]?\s*$/i,
+      (value) => isPartyNameCandidate(cleanPartyName(value)),
+    );
+    if (nearby) {
+      nameLine = nearby.line;
+      nameLines = [nearby.line];
+      name = cleanPartyName(nearby.value);
+    }
+  }
+  for (let index = 0; !nameLine && index < lines.length; index += 1) {
+    const cleaned = cleanPartyName(lines[index].text);
+    if (isPartyNameCandidate(cleaned) && (isCustomerAnchorText(lines[index].text) || LEGAL_FORM.test(cleaned))) {
+      nameLine = lines[index];
+      nameLines = [lines[index]];
+      name = cleaned;
+      break;
+    }
+    if (isCustomerAnchorText(lines[index].text)) {
+      const anchorBox = lines[index].boundingBox;
+      if (anchorBox) {
+        const sameRowName = lines.find((line) => line.boundingBox &&
+          line.boundingBox.x > anchorBox.x &&
+          Math.abs(line.boundingBox.y - anchorBox.y) <= Math.max(35, anchorBox.height * 1.5) &&
+          isPartyNameCandidate(cleanPartyName(line.text)));
+        // Same-row values are complete inline names. Below-label values are a
+        // contiguous region (organization + department/legal-form continuations)
+        // collected by the candidate loop — never grab only the first line.
+        if (sameRowName) {
+          nameLine = sameRowName;
+          nameLines = [sameRowName];
+          name = cleanPartyName(sameRowName.text);
+          break;
+        }
+        const sameRowLeft = lines.find((line) => line.boundingBox &&
+          line.boundingBox.x + line.boundingBox.width < anchorBox.x &&
+          Math.abs(line.boundingBox.y - anchorBox.y) <= Math.max(35, anchorBox.height * 1.5) &&
+          isPartyNameCandidate(cleanPartyName(line.text)));
+        if (sameRowLeft) {
+          nameLine = sameRowLeft;
+          nameLines = [sameRowLeft];
+          name = cleanPartyName(sameRowLeft.text);
+          break;
+        }
+      }
+      const candidates: DocumentLayoutLine[] = [];
+      const spatial = [...lines.slice(0, index), ...lines.slice(index + 1)]
+        .filter((line) => line !== lines[index] && !ctx.tableLineIds.has(line.id))
+        .sort((left, right) => {
+          const anchor = lines[index];
+          if (!anchor.boundingBox || !left.boundingBox || !right.boundingBox) {
+            return Math.abs(left.readingOrder - lines[index].readingOrder)
+              - Math.abs(right.readingOrder - lines[index].readingOrder);
+          }
+          const distance = (line: DocumentLayoutLine) => Math.hypot(
+            (line.boundingBox!.x + line.boundingBox!.width / 2) - (anchor.boundingBox!.x + anchor.boundingBox!.width / 2),
+            (line.boundingBox!.y + line.boundingBox!.height / 2) - (anchor.boundingBox!.y + anchor.boundingBox!.height / 2),
+          );
+          return distance(left) - distance(right);
+        });
+      for (let candidateIndex = 0; candidateIndex < spatial.length; candidateIndex += 1) {
+        if (candidateIndex % METADATA_CHECK_EVERY === 0 && ctx.timedOut()) break;
+        const candidate = spatial[candidateIndex];
+        if (isPartyScanBoundary(candidate.text, ctx.isTableColumn, ctx.inferDocumentType)) {
+          continue;
+        }
+        if (!isPartyNameCandidate(cleanPartyName(candidate.text))) {
+          continue;
+        }
+        if (!organizationNameAllowed(cleanPartyName(candidate.text), sharedPartyNameEvidence)) {
+          continue;
+        }
+        if (/^(?:atenci[oó]n|tel[eé]fono|phone|email)\s*:?\s*$/i.test(candidate.text.trim())) continue;
+        candidates.push(candidate);
+        if (candidates.length >= 6) break;
+      }
+      if (candidates.length > 0) {
+        const anchor = lines[index];
+        nameLines = candidates
+          .filter((candidate, candidateIndex) =>
+            candidates.findIndex((entry) => normalizeDocumentText(cleanPartyName(entry.text)) === normalizeDocumentText(cleanPartyName(candidate.text))) === candidateIndex)
+          .sort((left, right) => {
+            const leftName = cleanPartyName(left.text);
+            const rightName = cleanPartyName(right.text);
+            const personPenalty = (name: string) =>
+              (/\([^)]*(?:presidente|director|manager|contacto|contact)\)/i.test(name) ? 1 : 0) +
+              (/^(?:d\.|mr\.|mrs\.|ms\.)\s/i.test(name) ? 1 : 0);
+            const distance = (line: DocumentLayoutLine) => {
+              if (!anchor.boundingBox || !line.boundingBox) {
+                return Math.abs(line.readingOrder - anchor.readingOrder);
+              }
+              return Math.hypot(
+                (line.boundingBox.x + line.boundingBox.width / 2) - (anchor.boundingBox.x + anchor.boundingBox.width / 2),
+                (line.boundingBox.y + line.boundingBox.height / 2) - (anchor.boundingBox.y + anchor.boundingBox.height / 2),
+              );
+            };
+            const wordRank = (name: string) => (name.split(/\s+/).filter(Boolean).length >= 2 ? 0 : 1);
+            return personPenalty(leftName) - personPenalty(rightName) ||
+              wordRank(leftName) - wordRank(rightName) ||
+              distance(left) - distance(right) ||
+              rightName.split(/\s+/).length - leftName.split(/\s+/).length;
+          });
+        const winner = nameLines[0];
+        if (!winner) break;
+        nameLine = winner;
+        const continuations = nameLines.filter((line) => {
+          if (line === winner || !winner.boundingBox || !line.boundingBox) return false;
+          const dy = Math.abs(line.boundingBox.y - winner.boundingBox.y);
+          const dx = Math.abs(line.boundingBox.x - winner.boundingBox.x);
+          if (dy > 52 || dx > 90) return false;
+          if (LEGAL_FORM.test(line.text) && !LEGAL_FORM.test(winner.text)) return false;
+          return true;
+        });
+        nameLines = [winner, ...continuations].sort((left, right) =>
+          (left.boundingBox?.y ?? left.readingOrder) - (right.boundingBox?.y ?? right.readingOrder),
+        );
+        name = nameLines.map((line) => cleanPartyName(line.text)).join(' ');
+        break;
+      }
+    }
+  }
+  if (!nameLine && role === 'issuer') {
+    const legalNameLine = lines.find((line) => {
+      const cleaned = cleanPartyName(line.text);
+      if (!isPartyNameCandidate(cleaned) || isRejectedIssuerName(cleaned) || isRejectedIssuerName(line.text)) return false;
+      if (isPaymentSectionContext(line.text)) return false;
+      return hasStrongIssuerLegalForm(cleaned) || (LEGAL_FORM.test(cleaned) && !hasWeakSaOnlyLegalForm(cleaned));
+    });
+    const corroborated = legalNameLine ? undefined : issuerNameCorroboratedByDomain(lines);
+    if (corroborated && isPaymentSectionContext(corroborated.line.text)) {
+      nameLine = undefined;
+      name = '';
+      nameLines = [];
+    } else {
+      nameLine = legalNameLine ?? corroborated?.line;
+      name = legalNameLine ? cleanPartyName(legalNameLine.text) : corroborated?.name ?? '';
+      nameLines = nameLine ? [nameLine] : [];
+      domainCorroborated = !legalNameLine && !!corroborated?.name;
+    }
+  }
+  if (role === 'issuer' && name && (
+    isRejectedIssuerName(name)
+    || (nameLine !== undefined && cleanPartyName(nameLine.text) === name && isRejectedIssuerName(nameLine.text))
+    || isPaymentSectionContext(name)
+    || isPaymentSectionContext(nameLine?.text ?? '')
+  )) {
+    nameLine = undefined;
+    name = '';
+    nameLines = [];
+  }
+
+  const department = firstMatch(lines, /\b(?:ufficio|dipartimento|department|area|servizio)\s*[:\-]?\s*(.+)$/i);
+  const contactPerson = firstMatch(lines, /\b(?:alla c\.?a\.?|attenzione|contact|referente|ansprechpartner)\s*[:\-]?\s*(.+)$/i);
+  const address = extractAddress(lines);
+  const vatNumber = extractVat(lines);
+  const contacts = extractContactFields(lines);
+  const partyEvidence = partyNameEvidenceFromLines(lines, address, {
+    vat: !!vatNumber,
+    phone: !!contacts.phone,
+    email: !!contacts.email,
+  });
+  if (
+    name
+    && !domainCorroborated
+    && !organizationNameAllowed(name, {
+      ...partyEvidence,
+      hasWebsite: partyEvidence.hasWebsite || !!contacts.website,
+    })
+  ) {
+    nameLine = undefined;
+    name = '';
+    nameLines = [];
+  }
+  const party: StructuredParty = {
+    role,
+    ...(nameLine && name ? {
+      name: evidenceString(
+        nameLines.map((line) => line.text).join(' '),
+        name,
+        nameLines,
+        domainCorroborated ? 'issuer_domain_corroborated' : nameReason,
+        domainCorroborated,
+      ),
+    } : {}),
+    ...(department ? { department: evidenceString(department.value, department.value, [department.line], 'department_label') } : {}),
+    ...(address ? { address } : {}),
+    ...(vatNumber ? { vatNumber } : {}),
+    ...(extractTaxCode(lines) ? { taxCode: extractTaxCode(lines) } : {}),
+    ...(contactPerson ? { contactPerson: evidenceString(contactPerson.value, contactPerson.value, [contactPerson.line], 'contact_person_label') } : {}),
+    ...contacts,
+    conflicts: [],
+    requiresReview: !nameLine,
+  };
+  return Object.keys(party).length > 3 ? party : undefined;
+}
+
+function normalizedFiscalDigits(value: string | null | undefined): string {
+  return String(value ?? '').replace(/\D/g, '').replace(/^39(?=\d{9,11}$)/, '');
+}
+
+function evidenceTop(evidence: DocumentEvidence<unknown> | undefined): number | undefined {
+  const box = evidence?.boundingBox;
+  return box ? box.y : undefined;
+}
+
+function contactDomain(value: string | null | undefined): string {
+  const text = String(value ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
+  if (text.includes('@')) return text.split('@')[1] ?? '';
+  return text.split('/')[0] ?? '';
+}
+
+function detachIssuerOwnedFields(issuer: StructuredParty | undefined, party: StructuredParty | undefined, ctx: DocumentMetadataContext): void {
+  if (!issuer || !party || samePartyName(issuer.name?.normalizedValue, party.name?.normalizedValue)) return;
+  const partyNameY = evidenceTop(party.name);
+  const issuerDomains = new Set([
+    contactDomain(issuer.email?.normalizedValue),
+    contactDomain(issuer.website?.normalizedValue),
+  ].filter(Boolean));
+
+  const detachIfIssuerOwned = (field: 'email' | 'website' | 'phone') => {
+    const candidate = party[field];
+    if (!candidate) return;
+    const candidateY = evidenceTop(candidate);
+    const geometricallyUpstream = partyNameY !== undefined && candidateY !== undefined && candidateY + 55 < partyNameY;
+    const exactIssuerValue = String(candidate.normalizedValue ?? '').replace(/\s+/g, '').toLowerCase() ===
+      String(issuer[field]?.normalizedValue ?? '').replace(/\s+/g, '').toLowerCase();
+    const sameIssuerDomain = (field === 'email' || field === 'website') && issuerDomains.has(contactDomain(candidate.normalizedValue));
+    const sourceIds = new Set(candidate.sourceLineIds ?? []);
+    const fromIssuerRegion = ctx.allLines.some((line) => sourceIds.has(line.id) && (line.semanticRegion === 'issuer_block' || line.semanticRegion === 'header'));
+    if (exactIssuerValue || (geometricallyUpstream && (sameIssuerDomain || fromIssuerRegion))) {
+      delete party[field];
+      party.conflicts.push(`${field}_detached_from_issuer_block`);
+      party.requiresReview = true;
+    }
+  };
+  detachIfIssuerOwned('email');
+  detachIfIssuerOwned('website');
+  detachIfIssuerOwned('phone');
+
+  const issuerFiscal = new Set([
+    normalizedFiscalDigits(issuer.vatNumber?.normalizedValue),
+    normalizedFiscalDigits(issuer.taxCode?.normalizedValue),
+  ].filter((value) => value.length >= 8));
+  const partyVat = normalizedFiscalDigits(party.vatNumber?.normalizedValue);
+  if (party.vatNumber && partyVat && issuerFiscal.has(partyVat)) {
+    delete party.vatNumber;
+    party.conflicts.push('customer_vat_detached_from_issuer_block');
+    party.requiresReview = true;
+  }
+}
+
+function parseIsoDate(raw: string, primaryLanguage?: DocumentLanguage): { value?: string; ambiguous: boolean; alternatives: string[] } {
+  const repaired = raw.replace(/\b(20)0(\d{2})\b/, '$1$2').replace(/(\d{1,2}[./-]\d{1,2})(\d{4})\b/, '$1/$2');
+  const parsed = parseInternationalDate(repaired, primaryLanguage);
+  return { ...(parsed.normalizedValue ? { value: parsed.normalizedValue } : {}), ambiguous: parsed.ambiguous, alternatives: parsed.alternatives };
+}
+
+const STRONG_ISSUE_DATE_LABEL =
+  /\b(?:invoice date|order date|quote date|issue date|document date|data fattura|data ordine|data preventivo|fecha(?:\s+(?:de\s+emisi[oó]n|presupuesto))?|date du devis|date d.?emission|belegdatum)\b/i;
+
+function labeledWrittenDateEvidence(
+  lines: readonly DocumentLayoutLine[],
+  language?: DocumentLanguage,
+): DocumentEvidence<string> | undefined {
+  const scored: Array<{
+    evidence: DocumentEvidence<string>;
+    distance: number;
+    page: number;
+    y: number;
+    x: number;
+    id: string;
+    raw: string;
+  }> = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!STRONG_ISSUE_DATE_LABEL.test(line.text) && !/^(?:fecha|date|data)(?:\s*\/\s*(?:fecha|date|data))?\s*:?\s*$/i.test(line.text.trim())) {
+      continue;
+    }
+    const labelRole = classifyDateLabelText(line.text);
+    if (labelRole?.role === 'validityDate' || labelRole?.role === 'dueDate' || labelRole?.role === 'deliveryDate') {
+      continue;
+    }
+    const window = lines.filter((candidate) => candidate.pageIndex === line.pageIndex);
+    const nearest = window.flatMap((candidate) => {
+      const candidateRole = classifyDateLabelText(candidate.text);
+      if (candidateRole?.role === 'validityDate' || candidateRole?.role === 'dueDate') return [];
+      const parsed = parseInternationalDate(candidate.text, language);
+      if (!parsed.normalizedValue) return [];
+      const dx = (candidate.boundingBox?.x ?? 0) - (line.boundingBox?.x ?? 0);
+      const dy = (candidate.boundingBox?.y ?? 0) - (line.boundingBox?.y ?? 0);
+      return [{
+        evidence: evidenceString(candidate.text, parsed.normalizedValue, [line, candidate], 'labeled_written_issue_date', true),
+        distance: Math.hypot(dx, dy),
+        page: candidate.pageIndex,
+        y: candidate.boundingBox?.y ?? 0,
+        x: candidate.boundingBox?.x ?? 0,
+        id: candidate.id,
+        raw: parsed.normalizedValue,
+      }];
+    }).sort((left, right) => (
+      left.distance - right.distance
+      || left.page - right.page
+      || left.y - right.y
+      || left.x - right.x
+      || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    ))[0];
+    if (nearest) scored.push(nearest);
+  }
+  scored.sort((left, right) => (
+    left.distance - right.distance
+    || left.page - right.page
+    || left.y - right.y
+    || left.x - right.x
+    || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    || (left.raw < right.raw ? -1 : left.raw > right.raw ? 1 : 0)
+  ));
+  return scored[0]?.evidence;
+}
+
+function naturalDateEvidence(ctx: DocumentMetadataContext): DocumentEvidence<string> | undefined {
+  const language = ctx.primaryLanguage;
+  const typeLine = ctx.metadataLines.find((line) => !!ctx.inferDocumentType(line.text));
+  for (let index = 0; index < ctx.metadataLines.length; index += 1) {
+    if (index % METADATA_CHECK_EVERY === 0 && ctx.timedOut()) return undefined;
+    const line = ctx.metadataLines[index];
+    if (/\b(?:certificat|valido dal|validita|consegna|delivery|scadenza|due date)\b/i.test(line.text)) continue;
+    const page = ctx.pages.find((candidate) => candidate.pageIndex === line.pageIndex);
+    const inHeader = !!line.boundingBox && !!page?.height && line.boundingBox.y + line.boundingBox.height / 2 <= page.height * 0.35;
+    const nearDocumentType = !!typeLine && typeLine.pageIndex === line.pageIndex && Math.abs(line.readingOrder - typeLine.readingOrder) <= 12;
+    if (!inHeader && !nearDocumentType) continue;
+    if (!/\b\d{1,2}\.?\s+(?:de\s+)?\p{L}{3,}\s+(?:de\s+)?\d{4}\b/u.test(line.text)) continue;
+    const parsed = parseInternationalDate(line.text, language);
+    if (!parsed.normalizedValue) continue;
+    return evidenceString(line.text, parsed.normalizedValue, [line], 'multilingual_issue_date_in_document_header', true);
+  }
+  return undefined;
+}
+
+const RE_STANDALONE_DOC_NUMBER_LABEL = /^(?:numero|number|nr\.?|n[°º.]?\s*(?:documento|preventivo|offerta|ordine|document|quotation|invoice|fattura))\s*:?\s*$/i;
+
+function isDocumentNumberLabelText(text: string): boolean {
+  const cached = DOCUMENT_NUMBER_LABEL_CACHE.get(text);
+  if (cached !== undefined) return cached;
+  const trimmed = text.trim();
+  const normalized = normalizeDocumentText(trimmed);
+  if (
+    detectDocumentTableColumnFast(trimmed) ||
+    matchesDocumentLabel(trimmed, 'itemCode') ||
+    /\b(?:art\.?-?\s*nr\.?|artikelnummer|item\s+code|sku|kundennummer|customer\s+(?:no|number|nr))\b/i.test(normalized)
+  ) {
+    DOCUMENT_NUMBER_LABEL_CACHE.set(text, false);
+    return false;
+  }
+  if (/\b(?:angebotsnummer|rechnungsnummer|belegnummer|auftragsnummer)\b/i.test(normalized)) {
+    DOCUMENT_NUMBER_LABEL_CACHE.set(text, true);
+    return true;
+  }
+  if (RE_STANDALONE_DOC_NUMBER_LABEL.test(trimmed) || matchesDocumentLabel(trimmed, 'documentNumber')) {
+    DOCUMENT_NUMBER_LABEL_CACHE.set(text, true);
+    return true;
+  }
+  if (/\b(?:numero documento|document number|quotation no|order no|invoice no|n[°º]\s*(?:documento|preventivo)|your reference|customer reference|riferimento cliente)\b/i.test(normalized)) {
+    const value = !isDocumentNumberValue(trimmed);
+    DOCUMENT_NUMBER_LABEL_CACHE.set(text, value);
+    return value;
+  }
+  const value = RE_DOC_NUMBER_LABEL.test(normalized) && trimmed.length <= 48 && !isDocumentNumberValue(trimmed);
+  DOCUMENT_NUMBER_LABEL_CACHE.set(text, value);
+  return value;
+}
+
+function numberNearStandaloneLabel(lines: readonly DocumentLayoutLine[]): { line: DocumentLayoutLine; value: string } | undefined {
+  const excluded = /\b(?:iva|vat|cup|cig|iban|telefono|tel|fax|cap)\b/i;
+  const typeLines = lines.filter((line) => /\b(?:preventivo|offerta|quotation|ordine|order)\b/i.test(line.text));
+  for (const label of lines.filter((line) => /^(?:n|n\.|nr|nr\.|numero)\s*[:#-]?$/i.test(line.text.trim()))) {
+    const box = label.boundingBox;
+    const nearbyType = typeLines.find((line) => {
+      if (line.pageIndex !== label.pageIndex) return false;
+      if (!box || !line.boundingBox) return Math.abs(line.readingOrder - label.readingOrder) <= 8;
+      return Math.abs(line.boundingBox.y - box.y) <= Math.max(180, line.boundingBox.height * 8);
+    });
+    // N/NR is also a common unit inside item tables. Without a nearby document
+    // type in the header it is not a document-number label.
+    if (!nearbyType) continue;
+    const candidates = lines.filter((line) => {
+      if (line === label || line.pageIndex !== label.pageIndex || excluded.test(line.text)) return false;
+      if (!/^[A-Z0-9][A-Z0-9/_-]{2,30}$/i.test(line.text.trim()) || !/\d/.test(line.text)) return false;
+      if (isRepeatedTableCode(line.text.trim(), lines)) return false;
+      if (!box || !line.boundingBox) return line.readingOrder > label.readingOrder && line.readingOrder - label.readingOrder <= 2;
+      const verticalDistance = Math.abs(line.boundingBox.y - box.y);
+      const rightOfLabel = line.boundingBox.x >= box.x && verticalDistance <= Math.max(35, box.height * 1.8);
+      const immediatelyBelow = line.boundingBox.y >= box.y && line.boundingBox.y - box.y <= Math.max(70, box.height * 3);
+      return rightOfLabel || immediatelyBelow;
+    }).sort((a, b) => {
+      if (!box || !a.boundingBox || !b.boundingBox) return a.readingOrder - b.readingOrder;
+      const distance = (line: DocumentLayoutLine) => Math.hypot((line.boundingBox?.x ?? 0) - box.x, (line.boundingBox?.y ?? 0) - box.y);
+      return distance(a) - distance(b);
+    });
+    const candidate = candidates[0];
+    if (candidate) return { line: candidate, value: candidate.text.trim() };
+  }
+  return undefined;
+}
+
+function numberNearDocumentLabel(lines: readonly DocumentLayoutLine[]): { line: DocumentLayoutLine; value: string } | undefined {
+  const labels = lines.filter((line) => isDocumentNumberLabelText(line.text) || isStrongDocumentNumberLabel(line.text));
+  const ranked = [...labels].sort((left, right) => {
+    const leftStrong = isStrongDocumentNumberLabel(left.text) ? 0 : 1;
+    const rightStrong = isStrongDocumentNumberLabel(right.text) ? 0 : 1;
+    return leftStrong - rightStrong || left.readingOrder - right.readingOrder;
+  });
+  for (const label of ranked) {
+    const found = valueAroundGeometricLabel(lines, label, isDocumentNumberValue, 220);
+    if (
+      found
+      && !looksLikeInternationalTaxIdentifier(found.value)
+      && !isRepeatedTableCode(found.value, lines)
+      && !isItemCodeColumnContext(found.line, lines)
+      && !isCustomerCodeContext(found.line, lines)
+      && !isCustomerReferenceContext(found.line, lines)
+    ) {
+      return { line: found.line, value: found.value };
+    }
+    const labelIndex = lines.indexOf(label);
+    for (const offset of [1, 2, -1, 3]) {
+      const neighbor = lines[labelIndex + offset];
+      if (!neighbor) continue;
+      const token = neighbor.text.replace(/^[:#.\-\s]+/, '').trim().match(/^([A-Z0-9][A-Z0-9/_.-]{1,30})$/i)?.[1];
+      if (
+        token
+        && isDocumentNumberValue(token)
+        && !isItemCodeColumnContext(neighbor, lines)
+        && !isCustomerCodeContext(neighbor, lines)
+        && !isCustomerReferenceContext(neighbor, lines)
+      ) {
+        return { line: neighbor, value: token };
+      }
+    }
+  }
+  const found = nearestGeometricValue(
+    lines,
+    /^(?:numero|numer[oa]?|n\.?|nr\.?)\s*(?:documento|d?o?c?ument\w*|oeument\w*|preventivo|offerta|ordine)?\s*[:#-]?$/i,
+    isDocumentNumberValue,
+  );
+  return found ? { line: found.line, value: found.value } : undefined;
+}
+
+/**
+ * A bounded, geometry-free pass for the document identifiers that are common
+ * in the document header.  It intentionally does not use multilingual
+ * dictionaries: the shape itself includes a four-digit year and a sequence,
+ * which excludes dates, fiscal IDs, and ordinary customer/SKU codes.
+ */
+function completeSplitDocumentNumber(lineText: string, token: string): string {
+  const upper = lineText.toUpperCase();
+  const needle = token.toUpperCase();
+  const at = upper.indexOf(needle);
+  if (at < 0) return token;
+  if (!/\d$/.test(token)) return token;
+  const after = lineText.slice(at + token.length);
+  const continuation = after.match(/^\s+(\d{1,4}(?:-[A-Z0-9]{1,4})?)\b/i)?.[1];
+  if (!continuation) return token;
+  if (/^(?:20\d{2}|19\d{2})$/.test(continuation)) return token;
+  return `${token}${continuation}`;
+}
+
+function prefixedIdentifierOnLine(lineText: string, token: string): string {
+  const upper = lineText.toUpperCase();
+  const needle = token.toUpperCase();
+  const at = upper.indexOf(needle);
+  if (at <= 0) return completeSplitDocumentNumber(lineText, token);
+  const before = lineText.slice(Math.max(0, at - 8), at);
+  const prefix = before.match(/([A-Z]{2,8})[-/]$/i)?.[1];
+  if (!prefix) return completeSplitDocumentNumber(lineText, token);
+  const separator = lineText.slice(at - 1, at);
+  return completeSplitDocumentNumber(lineText, `${prefix}${separator}${token}`);
+}
+
+function fastHeaderDocumentNumber(
+  lines: readonly DocumentLayoutLine[],
+): { line: DocumentLayoutLine; value: string } | undefined {
+  const started = Date.now();
+  let candidates = 0;
+  for (const line of lines) {
+    if (/\b(?:iban|swift|bic|vat|iva|tax|fiscal|account)\b/i.test(line.text)) {
+      continue;
+    }
+    const spacedSlash = line.text.match(/\b([A-Z]{1,4})\s+(\d{2,4}\/\d{3,8})\b/i);
+    if (spacedSlash) {
+      const value = repairDocumentNumberPrefixOcr(`${spacedSlash[1].toUpperCase()} ${spacedSlash[2]}`);
+      logQaDocument('DocumentIdCandidate', {
+        value,
+        reason: 'header_spaced_prefix_slash_identifier',
+        page: line.pageIndex,
+        won: true,
+      });
+      return { line, value };
+    }
+    if (/\b(?:referencia\s+cliente|riferimento\s+cliente|customer\s+ref|rif\.?\s*cliente)\b/i.test(line.text)) {
+      continue;
+    }
+    const token = line.text.match(
+      /\b([A-Z]{2,8}[-/]20\d{2}[-/][A-Z0-9]{2,8}(?:-[A-Z])?|[A-Z]{2,8}-20\d{2}\/\d{2,6}|[A-Z]{1,4}\/20\d{2}\/[A-Z0-9]{2,6}|20\d{2}\/[A-Z0-9]{3,8})\b/i,
+    )?.[1];
+    if (!token) continue;
+    candidates += 1;
+    const expanded = prefixedIdentifierOnLine(line.text, token);
+    const value = repairDocumentNumberPrefixOcr(
+      expanded.replace(/^([A-Z]{1,4}\/20\d{2}\/)[Oo](?=\d{2,5}$)/i, '$10'),
+    );
+    if (isDevLogEnabled()) {
+      console.warn(`[DocumentNumberPerf] ${JSON.stringify({
+        fastCandidateCount: candidates,
+        fastPathMs: Date.now() - started,
+        fallbackUsed: false,
+        fallbackMs: 0,
+        selectedLength: value.length,
+        totalMs: Date.now() - started,
+      })}`);
+    }
+    logQaDocument('DocumentIdCandidate', {
+      value,
+      reason: 'fast_header_prefixed_identifier',
+      page: line.pageIndex,
+      won: true,
+    });
+    return { line, value };
+  }
+  if (isDevLogEnabled()) {
+    console.warn(`[DocumentNumberPerf] ${JSON.stringify({
+      fastCandidateCount: candidates,
+      fastPathMs: Date.now() - started,
+      fallbackUsed: true,
+      fallbackMs: 0,
+      selectedLength: 0,
+      totalMs: Date.now() - started,
+    })}`);
+  }
+  return undefined;
+}
+
+const STRONG_DOCUMENT_DATE_CONTEXT =
+  /\b(?:data\s+(?:ordine|fattura|preventivo|documento)|order\s+date|invoice\s+date|quote\s+date|quotation\s+date|document\s+date|issue\s+date|issued|emess[ao]|fecha(?:\s+(?:de\s+)?(?:emisi[oó]n|presupuesto|pedido|factura))?|date\s+(?:devis|du\s+devis|d.?emission|commande|facture)|dte\s+docem\w*|belegdatum)\b/i;
+const WEAK_DOCUMENT_DATE_CONTEXT =
+  /\b(?:richiesta|rich\.|via\s+mail|email\s+date|request\s+date|delivery\s+date|data\s+consegna|consegna\s+prevista|prevista|due\s+date|scadenza|validit|valid\s+until|reference\s+date|immatricolazione)\b/i;
+
+function documentDateContextScore(text: string): number {
+  const normalized = normalizeDocumentText(text);
+  if (hasInlineDocumentNumberDate(text) || hasInlineDocumentNumberDate(normalized)) return 100;
+  if (STRONG_DOCUMENT_DATE_CONTEXT.test(normalized)) return 100;
+  if (WEAK_DOCUMENT_DATE_CONTEXT.test(normalized)) return 15;
+  if (/\b(?:data|date|fecha|datum)\b/i.test(normalized) && !/\bdel\b/i.test(normalized)) return 70;
+  if (/\bdel\b/i.test(normalized)) return 25;
+  return 40;
+}
+
+function geometricallyAdjacentDateContext(
+  lines: readonly DocumentLayoutLine[],
+  line: DocumentLayoutLine,
+): string {
+  const box = line.boundingBox;
+  if (!box) {
+    const index = lines.indexOf(line);
+    return [lines[index - 1], line, lines[index + 1]]
+      .filter((entry): entry is DocumentLayoutLine => !!entry)
+      .map((entry) => entry.text)
+      .join(' ');
+  }
+  const centerX = box.x + box.width / 2;
+  const related = lines.filter((other) => {
+    if (other === line || other.pageIndex !== line.pageIndex || !other.boundingBox) return false;
+    const otherBox = other.boundingBox;
+    const otherCenterX = otherBox.x + otherBox.width / 2;
+    const sameRow = Math.abs(otherBox.y - box.y) <= Math.max(40, box.height * 1.6);
+    const sameColumn = Math.abs(otherCenterX - centerX) <= Math.max(180, box.width * 1.8);
+    const verticalGap = otherBox.y >= box.y + box.height
+      ? otherBox.y - (box.y + box.height)
+      : box.y >= otherBox.y + otherBox.height
+        ? box.y - (otherBox.y + otherBox.height)
+        : 0;
+    const horizontalGap = otherBox.x >= box.x + box.width
+      ? otherBox.x - (box.x + box.width)
+      : box.x >= otherBox.x + otherBox.width
+        ? box.x - (otherBox.x + otherBox.width)
+        : 0;
+    return (sameRow && horizontalGap <= 220) || (sameColumn && verticalGap <= 90);
+  });
+  return [line, ...related].map((entry) => entry.text).join(' ');
+}
+
+function selectPreferredDocumentDate(
+  lines: readonly DocumentLayoutLine[],
+  language: DocumentLanguage | undefined,
+  ctx: DocumentMetadataContext,
+): DocumentEvidence<string> | undefined {
+  const inferredType = lines
+    .map((line) => ctx.inferDocumentType(line.text)?.type)
+    .find((type): type is CanonicalCommercialDocumentType => !!type);
+  return resolveDocumentDateRoles(lines, language, inferredType).issueDate;
+}
+
+function dateEvidence(
+  lines: readonly DocumentLayoutLine[],
+  pattern: RegExp,
+  reason: string,
+  primaryLanguage?: DocumentLanguage,
+): DocumentEvidence<string> | undefined {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const match = line.text.match(pattern);
+    const raw = match?.[1];
+    if (!raw) continue;
+    const parsed = parseIsoDate(raw, primaryLanguage);
+    if (!parsed.value) continue;
+    const explicitDocumentDate = reason === 'issue_date_near_header_label' && /\b(?:data|date|del)\b/i.test(line.text);
+    const evidence = documentEvidence({
+      rawValue: raw,
+      normalizedValue: parsed.value,
+      lines: [line],
+      validationStatus: parsed.ambiguous && !explicitDocumentDate ? 'ambiguous' : parsed.ambiguous ? 'unverified' : 'valid',
+      reasons: [reason, parsed.ambiguous ? (explicitDocumentDate ? 'day_first_document_date_label' : 'ambiguous_day_month') : 'valid_calendar_date'],
+      requiresReview: parsed.ambiguous,
+    });
+    evidence.alternatives = parsed.alternatives.filter((value) => value !== parsed.value).map((value) => ({
+      rawValue: raw,
+      normalizedValue: value,
+      pageIndex: line.pageIndex,
+      sourceLineIds: [line.id],
+      reasons: ['ambiguous_day_month_alternative'],
+    }));
+    return evidence;
+  }
+  return undefined;
+}
+
+function dateNearLabel(
+  lines: readonly DocumentLayoutLine[],
+  labelPattern: RegExp,
+  reason: string,
+  primaryLanguage?: DocumentLanguage,
+): DocumentEvidence<string> | undefined {
+  const isValue = (value: string) => !!(
+    parseIsoDate(value, primaryLanguage).value
+    || parseInternationalDate(value, primaryLanguage).normalizedValue
+  );
+  const labels = lines.filter((line) => labelPattern.test(normalizeDocumentText(line.text)));
+  const rankedLabels = [...labels].sort((left, right) => (
+    documentDateContextScore(right.text) - documentDateContextScore(left.text)
+    || left.pageIndex - right.pageIndex
+    || (left.boundingBox?.y ?? 0) - (right.boundingBox?.y ?? 0)
+    || (left.boundingBox?.x ?? 0) - (right.boundingBox?.x ?? 0)
+    || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+  ));
+  let found: { label: DocumentLayoutLine; line: DocumentLayoutLine; value: string } | undefined;
+  for (const label of rankedLabels) {
+    if (WEAK_DOCUMENT_DATE_CONTEXT.test(label.text)) continue;
+    const labelRole = classifyDateLabelText(label.text);
+    if (reason.startsWith('issue_') && (labelRole?.role === 'validityDate' || labelRole?.role === 'dueDate' || labelRole?.role === 'deliveryDate')) {
+      continue;
+    }
+    if (reason.startsWith('validity_') && labelRole?.role && labelRole.role !== 'validityDate') continue;
+    if (reason.startsWith('due_') && labelRole?.role && labelRole.role !== 'dueDate') continue;
+    found = valueAroundGeometricLabel(lines, label, isValue, 220);
+    if (found) break;
+  }
+  found ??= nearestGeometricValue(lines, labelPattern, isValue);
+  if (!found) return undefined;
+  const parsed = parseIsoDate(found.value, primaryLanguage);
+  const international = parseInternationalDate(found.value, primaryLanguage);
+  const normalized = parsed.value ?? international.normalizedValue;
+  if (!normalized) return undefined;
+  const evidence = documentEvidence({
+    rawValue: found.value,
+    normalizedValue: normalized,
+    lines: [found.label, found.line],
+    validationStatus: parsed.ambiguous ? 'unverified' : 'valid',
+    reasons: [reason, 'label_value_geometric_relation', parsed.ambiguous ? 'day_first_document_date_label' : 'valid_calendar_date'],
+    requiresReview: parsed.ambiguous,
+  });
+  evidence.alternatives = parsed.alternatives.filter((value) => value !== parsed.value).map((value) => ({
+    rawValue: found.value,
+    normalizedValue: value,
+    pageIndex: found.line.pageIndex,
+    sourceLineIds: [found.label.id, found.line.id],
+    reasons: ['ambiguous_day_month_alternative'],
+  }));
+  return evidence;
+}
+
+function extractVehicle(lines: readonly DocumentLayoutLine[]): StructuredVehicleSection | undefined {
+  const vehicleLabels = lines.filter((line) => /\b(?:tipo veicolo|telaio|vin|immatricolazione|tipo motore|motore|km|chilometri|fabbrica.*tipo|marca.*modello)\b/i.test(normalizeDocumentText(line.text)));
+  if (vehicleLabels.length < 2) return undefined;
+  const evidenceFromNear = (label: RegExp, predicate: (value: string) => boolean, reason: string) => {
+    const found = nearestGeometricValue(lines, label, predicate);
+    return found ? evidenceString(found.value, found.value.trim(), [found.label, found.line], reason) : undefined;
+  };
+  const modelRaw = evidenceFromNear(/^(?:fabbrica.*tipo|marca.*modello)\s*:?$/i, (value) => /[A-Za-z]{3}/.test(value) && value.length <= 100, 'vehicle_model_near_label');
+  const model = modelRaw?.normalizedValue
+    ? { ...modelRaw, normalizedValue: modelRaw.normalizedValue.replace(/[^A-Z0-9)\]]+$/i, '').trim() }
+    : modelRaw;
+  const type = evidenceFromNear(/^tipo veicolo\s*:?$/i, (value) => /[A-Za-z]{3}/.test(value) && value.length <= 50, 'vehicle_type_near_label');
+  const vinFound = nearestGeometricValue(lines, /^(?:telaio|vin)\s*:?$/i, (value) => /^[A-Z0-9\s]{15,22}$/i.test(value) && value.replace(/\s/g, '').length === 17);
+  const vin = vinFound ? evidenceString(vinFound.value, vinFound.value.replace(/\s/g, '').toUpperCase(), [vinFound.label, vinFound.line], 'vehicle_vin_near_label', true) : undefined;
+  const registration = dateNearLabel(lines, /^(?:immatricolazione|data immatricolazione)\s*:?$/i, 'vehicle_registration_date_near_label');
+  const kilometersFound = nearestGeometricValue(lines, /^(?:km|chilometri)\s*:?$/i, (value) => /^\d{1,8}$/.test(value.replace(/\s/g, '')));
+  const kilometersValue = kilometersFound ? Number(kilometersFound.value.replace(/\s/g, '')) : undefined;
+  const kilometers = kilometersFound && Number.isFinite(kilometersValue)
+    ? documentEvidence({ rawValue: kilometersFound.value, normalizedValue: kilometersValue, lines: [kilometersFound.label, kilometersFound.line], validationStatus: 'valid', reasons: ['vehicle_kilometers_near_label'], requiresReview: false })
+    : undefined;
+  const engine = evidenceFromNear(/^(?:tipo motore|motore)\s*:?$/i, (value) => /^[A-Z0-9][A-Z0-9 ._-]{2,30}$/i.test(value), 'vehicle_engine_near_label');
+  const plateLine = lines.find((line) => /\b[A-Z]{2}\s*\d{3}\s*[A-Z]{2}\b/i.test(line.text) && vehicleLabels.some((label) => label.pageIndex === line.pageIndex && (!label.boundingBox || !line.boundingBox || Math.abs(line.boundingBox.y - label.boundingBox.y) < 160)));
+  const plateRaw = plateLine?.text.match(/\b[A-Z]{2}\s*\d{3}\s*[A-Z]{2}\b/i)?.[0];
+  const plate = plateLine && plateRaw ? evidenceString(plateRaw, plateRaw.replace(/\s/g, '').toUpperCase(), [plateLine], 'vehicle_plate_format_in_vehicle_block', true) : undefined;
+  const makeValue = model?.normalizedValue?.split(/\s+/)[0];
+  const make = model && makeValue ? evidenceString(model.normalizedValue ?? '', makeValue, lines.filter((line) => model.sourceLineIds.includes(line.id)), 'vehicle_make_derived_from_model_line') : undefined;
+  return {
+    ...(make ? { make } : {}),
+    ...(model ? { model } : type ? { model: type } : {}),
+    ...(plate ? { plate } : {}),
+    ...(vin ? { vin } : {}),
+    ...(registration ? { registrationDate: registration } : {}),
+    ...(kilometers ? { kilometers } : {}),
+    ...(engine ? { engine } : {}),
+    requiresReview: [model, plate, vin, registration, kilometers, engine].some((field) => !field || field.requiresReview),
+  };
+}
+
+function documentTypeRegionPriority(line: DocumentLayoutLine): number {
+  const region = line.semanticRegion;
+  if (region === 'document_identity' || region === 'header') return 0;
+  if (region === 'issuer_block' || region === 'customer_block') return 1;
+  if (region === 'unknown' || region === undefined) return 2;
+  if (region === 'notes' || region === 'footer' || region === 'payment_terms') return 6;
+  return 4;
+}
+
+function metadataFromLines(
+  ctx: DocumentMetadataContext,
+  declaredType: StructuredDocumentType,
+): StructuredDocumentMetadata {
+  const lines = ctx.allLines;
+  const metadataLines = ctx.metadataLines;
+  const language = ctx.primaryLanguage;
+
+  const documentNumberStarted = Date.now();
+  // Layout variants can classify the document number into a header/title zone
+  // rather than metadata. The fast resolver is shape-only and bounded, so it
+  // must see all existing layout lines before the expensive fallback.
+  const fastNumber = fastHeaderDocumentNumber(ctx.allLines);
+  if (fastNumber) {
+    logMetadataPerf('documentNumber', { found: true, fastPath: true, ms: Date.now() - documentNumberStarted });
+  }
+
+  const documentTypeStarted = Date.now();
+  // Fast identifier matching must not skip type inference: ORDER-2026-17 is a
+  // number shape, not proof that the document is a quotation.
+  const typedLine = ctx.allLines
+    .slice(0, 48)
+    .flatMap((line) => {
+      const inferred = ctx.inferDocumentType(line.text);
+      return inferred ? [{ line, inferred }] : [];
+    })
+    .sort((left, right) => {
+      const leftExact = normalizeDocumentLabel(left.line.text) === normalizeDocumentLabel(left.inferred.label.value) ? 1 : 0;
+      const rightExact = normalizeDocumentLabel(right.line.text) === normalizeDocumentLabel(right.inferred.label.value) ? 1 : 0;
+      if (rightExact !== leftExact) return rightExact - leftExact;
+      const leftRegion = documentTypeRegionPriority(left.line);
+      const rightRegion = documentTypeRegionPriority(right.line);
+      if (leftRegion !== rightRegion) return leftRegion - rightRegion;
+      if (right.inferred.label.priority !== left.inferred.label.priority) {
+        return right.inferred.label.priority - left.inferred.label.priority;
+      }
+      if (right.inferred.label.value.length !== left.inferred.label.value.length) {
+        return right.inferred.label.value.length - left.inferred.label.value.length;
+      }
+      return left.line.readingOrder - right.line.readingOrder;
+    })[0];
+  const typeLine = typedLine?.line;
+  const inferredType: CanonicalCommercialDocumentType = typedLine?.inferred?.type ?? (declaredType === 'quote' ? 'quotation' : declaredType);
+  logMetadataPerf('documentType', { found: !!typeLine, ms: Date.now() - documentTypeStarted });
+
+  const structuredPrefixNumber = firstMatch(
+    metadataLines.filter((line) => !/\b(?:iban|swift|bic|partita\s+va)\b/i.test(line.text)),
+    /\b([A-Z]{1,4}\/\d{4}\/\d{2,5})\b/i,
+  );
+  const inlineNumber = firstMatch(metadataLines, /\b(?:(?:preventivo|offerta|quotation|quote|devis|angebot|kostenvoranschlag|presupuesto|cotizaci[óo]n|ordine|order|commande|bestellung|pedido|fattura|invoice|facture|rechnung|factura)\s+(?:n\.?|nr\.?|no\.?|n[°º])\s*[,.:#\-]?|(?:numero|num[ée]ro|nummer|n[úu]mero)(?:\s+(?:documento|document|devis|commande|beleg|factura))?\s*[:#\-]?|(?:document|quotation|order|invoice)\s+(?:no\.?|number)\s*[:#\-]?)\s*([A-Z0-9][A-Z0-9/_.-]{1,30})\b/i);
+  const slashNumber = slashDocumentNumberFromLines(ctx.allLines);
+  const numberWithDate = firstMatch(
+    ctx.allLines,
+    /(?:^|\s)(?:n|nr|numero)\.?\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\/_-]{2,30})\s+(?:del|data)\b/i,
+  );
+  const labeledNumber = numberNearDocumentLabel(ctx.allLines) ?? numberNearDocumentLabel(metadataLines);
+  const numberCandidate = numberWithDate
+    ?? fastNumber
+    ?? labeledNumber
+    ?? structuredPrefixNumber
+    ?? slashNumber
+    ?? (inlineNumber && isDocumentNumberValue(inlineNumber.value) && !isRepeatedTableCode(inlineNumber.value, ctx.allLines) ? inlineNumber : undefined)
+    ?? numberNearStandaloneLabel(metadataLines);
+  // Every resolver, including geometric/standalone-label fallbacks, must pass
+  // the same value guard. Previously those paths could leak alphabetic OCR
+  // fragments (for example AZIONALE / EO) into documentNumber.
+  const number = numberCandidate && isDocumentNumberValue(numberCandidate.value)
+    ? numberCandidate
+    : undefined;
+  if (!fastNumber) {
+    logMetadataPerf('documentNumber', { found: !!number, fastPath: false, ms: Date.now() - documentNumberStarted });
+  }
+
+  if (ctx.timedOut()) {
+    return {
+      documentType: documentEvidence({
+        rawValue: typeLine?.text ?? declaredType,
+        normalizedValue: inferredType,
+        lines: typeLine ? [typeLine] : ctx.pages[0]?.lines.slice(0, 1) ?? [],
+        validationStatus: typeLine ? 'valid' : 'unverified',
+        reasons: ['metadata_deadline_after_document_number'],
+        requiresReview: true,
+      }),
+      ...(number ? { documentNumber: evidenceString(number.value, repairDocumentNumberPrefixOcr(number.value), [number.line], 'document_number_fast_or_bounded') } : {}),
+    };
+  }
+
+  const datesStarted = Date.now();
+  const resolvedDates = resolveDocumentDateRoles(lines, language, inferredType);
+  const issueDate = resolvedDates.issueDate
+    ?? dateNearLabel(lines, /^(?:data|deta|dete|date|issue date|invoice date|order date|quote date|document date|date d.?emission|date du devis|datum|belegdatum|fecha|fecha de emision|fecha presupuesto|data fattura|data ordine|data preventivo|dte\s+docem\w*)(?:\s+(?:documento|d?o?c?ument\w*|doe?ment\w*|preventivo|offerta|ordine|fattura))?\s*:?$/i, 'issue_date_near_header_label', language)
+    ?? labeledWrittenDateEvidence(lines, language)
+    ?? naturalDateEvidence(ctx);
+  const dueDate = resolvedDates.dueDate
+    ?? dateEvidence(lines, /\b(?:scadenza|due date|payment due|[ée]ch[ée]ance|zahlungsziel|f[äa]llig am|vencimiento)\s*[:\-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})\b/i, 'due_date_label', language)
+    ?? dateNearLabel(lines, /^(?:scadenza|due date|payment due|echeance|zahlungsziel|fallig am|vencimiento)\s*:?$/i, 'due_date_label', language);
+  const validityDate = resolvedDates.validityDate
+    ?? dateEvidence(lines, /\b(?:valido fino a(?:l)?|validita(?: offerta)?|valid until|valable jusqu.?au|g[üu]ltig bis|v[áa]lido hasta)\s*[:\-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})\b/i, 'validity_date_label', language)
+    ?? dateNearLabel(lines, /^(?:valido fino a(?:l)?|validita(?: offerta)?|valid until|valable jusqu au|gultig bis|valido hasta)\s*:?$/i, 'validity_date_label', language);
+  logMetadataPerf('dates', {
+    issue: !!issueDate,
+    due: !!dueDate,
+    validity: !!validityDate,
+    ms: Date.now() - datesStarted,
+  });
+
+  const referencesStarted = Date.now();
+  const cup = firstMatch(lines, /\bCUP\s*[:\-]?\s*([A-Z0-9][A-Z0-9\s]{4,24})\b/i);
+  const cupValue = cup?.value.replace(/\s+CI?G\b.*$/i, '').trim();
+  const cig = firstMatch(lines, /\bCIG\s*[:\-]?\s*([A-Z0-9]{5,20})\b/i);
+  const reference = firstMatch(lines, /\b(?:riferimento|rif\.?|reference)\s*[:\-]?\s*(.+)$/i);
+  const customerReferenceLabel = lines.find((line) => /\b(?:riferimento\s+cliente|customer\s+reference|vostro\s+codice\s+cliente|codice\s+cliente|customer\s+(?:code|no\.?|number)|client\s+(?:code|n[°ºo]|no\.?|number)|kundennummer)\b/i.test(normalizeDocumentText(line.text)));
+  const customerReference = valueAroundGeometricLabel(
+    lines,
+    customerReferenceLabel,
+    (value) => /^(?:n\.?\s*)?[A-Z0-9][A-Z0-9/_-]{2,30}(?:\s+del\s+\d{1,2}[./-]\d{1,2}[./-]\d{4})?$/i.test(value.trim()),
+    220,
+  );
+  const customerReferenceValue = customerReference?.value.match(/^(?:n\.?\s*)?([A-Z0-9][A-Z0-9/_-]{2,30})/i)?.[1];
+  const internalReferenceLabel = ctx.timedOut() || ctx.deadline !== undefined
+    ? undefined
+    : lines.find((line) => {
+      const text = normalizeDocumentText(line.text).replace(/[^a-z]/g, '');
+      return text.length >= 5 && text.length <= 10 && editDistance(text, 'cliente') <= 2;
+    });
+  const internalReference = valueAroundGeometricLabel(
+    lines,
+    internalReferenceLabel,
+    (value) => /^[A-Z]{2,5}\d{3,12}$/i.test(value.trim()),
+    180,
+  );
+  const subjectAnchor = lines.find((line) => /\b(?:oggetto|0ggetto|subject)\s*:/i.test(line.text));
+  const subjectLines = subjectAnchor
+    ? [subjectAnchor, ...lines.filter((line) => line.pageIndex === subjectAnchor.pageIndex && line !== subjectAnchor && line.boundingBox && subjectAnchor.boundingBox && Math.abs(line.boundingBox.x - subjectAnchor.boundingBox.x) < Math.max(80, subjectAnchor.boundingBox.width * 0.25) && line.boundingBox.y > subjectAnchor.boundingBox.y && line.boundingBox.y - subjectAnchor.boundingBox.y < Math.max(120, subjectAnchor.boundingBox.height * 3))].slice(0, 2)
+    : [];
+  const subjectValue = subjectLines.map((line, index) => index === 0 ? line.text.replace(/^.*?(?:oggetto|0ggetto|subject)\s*:\s*/i, '') : line.text).join(' ').replace(/\s+/g, ' ').trim();
+  logMetadataPerf('references', { ms: Date.now() - referencesStarted });
+
+  const currencyStarted = Date.now();
+  const currencyLine = ctx.allLines.find((line) => /\b(EUR|USD|GBP|CHF)\b|[€$\u00a3]/.test(line.text));
+  const currency = currencyLine
+    ? currencyLine.text.match(/\b(EUR|USD|GBP|CHF)\b/i)?.[1]?.toUpperCase() ?? (currencyLine.text.includes('€') ? 'EUR' : undefined)
+    : undefined;
+  logMetadataPerf('currency', { found: !!currency, ms: Date.now() - currencyStarted });
+  return {
+    documentType: documentEvidence({
+      rawValue: typeLine?.text ?? declaredType,
+      normalizedValue: inferredType,
+      lines: typeLine ? [typeLine] : ctx.pages[0]?.lines.slice(0, 1) ?? [],
+      validationStatus: typeLine ? 'valid' : 'unverified',
+      reasons: [typeLine ? 'document_type_label' : 'declared_scan_type'],
+      requiresReview: !typeLine,
+    }),
+    ...(number ? { documentNumber: evidenceString(number.value, repairDocumentNumberPrefixOcr(number.value), [number.line], 'document_number_near_type_or_label') } : {}),
+    ...(internalReference ? { internalReference: evidenceString(internalReference.value, internalReference.value.toUpperCase(), [internalReference.label, internalReference.line], 'internal_reference_near_client_code_label') } : {}),
+    ...(customerReference && customerReferenceValue ? { customerReference: evidenceString(customerReference.value, customerReferenceValue, [customerReference.label, customerReference.line], 'customer_reference_near_label') } : {}),
+    ...(issueDate ? { issueDate } : {}),
+    ...(dueDate ? { dueDate } : {}),
+    ...(validityDate ? { validityDate } : {}),
+    ...(currency && currencyLine ? { currency: evidenceString(currencyLine.text, currency, [currencyLine], 'explicit_currency', true) } : {}),
+    ...(reference ? { references: documentEvidence({ rawValue: reference.value, normalizedValue: [reference.value], lines: [reference.line], reasons: ['reference_label'] }) } : {}),
+    ...(cup && cupValue ? { cup: evidenceString(cupValue, cupValue.replace(/\s/g, '').toUpperCase(), [cup.line], 'cup_label') } : {}),
+    ...(cig ? { cig: evidenceString(cig.value, cig.value.toUpperCase(), [cig.line], 'cig_label') } : {}),
+    ...(subjectValue ? { subject: evidenceString(subjectValue, subjectValue, subjectLines, 'subject_label_and_geometry') } : {}),
+  };
+}
+
+export function extractDocumentIdentity(
+  pages: readonly StructuredDocumentPage[],
+  declaredType: StructuredDocumentType,
+  options?: { partiesOnly?: boolean; primaryLanguage?: DocumentLanguage; deadline?: number },
+): DocumentIdentityExtraction {
+  const started = Date.now();
+  const ctx = buildMetadataContext(pages, {
+    primaryLanguage: options?.primaryLanguage,
+    deadline: options?.deadline,
+  });
+  logMetadataPerf('start', {
+    lines: ctx.allLines.length,
+    metadataLines: ctx.metadataLines.length,
+    pages: pages.length,
+  });
+  // Resolve the core header metadata before optional party enrichment. This
+  // gives the structured pipeline a usable document number even when the
+  // metadata stage is about to yield its protected item-extraction budget.
+  const metadataStarted = Date.now();
+  const metadata = metadataFromLines(ctx, declaredType);
+  logMetadataPerf('metadataFields', {
+    documentNumber: metadata.documentNumber?.normalizedValue,
+    ms: Date.now() - metadataStarted,
+  });
+  const metadataTimedOut = ctx.timedOut();
+  // Timeout during metadata must not skip party extraction. Customer/issuer are
+  // P0 fields; party loops already yield when the deadline is hit.
+
+  const customerAnchorStarted = Date.now();
+  const customerAnchors: DocumentLayoutLine[] = [];
+  for (let index = 0; index < ctx.allLines.length; index += 1) {
+    if (index > 0 && index % METADATA_CHECK_EVERY === 0 && ctx.timedOut() && customerAnchors.length > 0) break;
+    const line = ctx.allLines[index];
+    if (!isCustomerAnchorText(line.text)) continue;
+    customerAnchors.push(line);
+  }
+  customerAnchors.sort((a, b) => {
+    const priority = (line: DocumentLayoutLine) => /\b(?:spettabile|spettable|spett\.?\s*le)\b/i.test(line.text)
+      ? 0
+      : /\b(?:destinatario|bill to|ship to)\b/i.test(line.text)
+        ? 1
+        : /^\s*cliente\s*:/i.test(line.text)
+          ? 2
+          : 3;
+    return priority(a) - priority(b) || a.pageIndex - b.pageIndex || a.readingOrder - b.readingOrder;
+  });
+  const dedupedCustomerAnchors = customerAnchors.filter((line, index, candidates) => !candidates.slice(0, index).some((previous) =>
+    previous.pageIndex === line.pageIndex && previous.boundingBox && line.boundingBox &&
+    Math.abs(previous.boundingBox.x - line.boundingBox.x) < 140 &&
+    line.boundingBox.y > previous.boundingBox.y && line.boundingBox.y - previous.boundingBox.y < 120));
+  logMetadataPerf('customerAnchors', { anchors: dedupedCustomerAnchors.length, ms: Date.now() - customerAnchorStarted });
+
+  const customerAnchor = dedupedCustomerAnchors[0];
+  const customerPageLines = customerAnchor
+    ? (ctx.linesByPage.get(customerAnchor.pageIndex) ?? [])
+    : [];
+  const tableHeaderStarted = Date.now();
+  let firstTableHeaderY = Number.POSITIVE_INFINITY;
+  const tableHeaderLimit = ctx.deadline !== undefined ? Math.min(customerPageLines.length, 80) : customerPageLines.length;
+  for (let index = 0; index < tableHeaderLimit; index += 1) {
+    if (index % METADATA_CHECK_EVERY === 0 && ctx.timedOut()) break;
+    const line = customerPageLines[index];
+    if (!ctx.isTableColumn(line.text)) continue;
+    const y = line.boundingBox?.y ?? Number.POSITIVE_INFINITY;
+    if (y < firstTableHeaderY) firstTableHeaderY = y;
+  }
+  logMetadataPerf('tableHeaderScan', { ms: Date.now() - tableHeaderStarted });
+
+  const linesForAnchor = (anchor: DocumentLayoutLine): DocumentLayoutLine[] => {
+    if (!anchor.boundingBox) return zoneLines(pages, ['customer']);
+    const pageWidth = pages.find((page) => page.pageIndex === anchor.pageIndex)?.width ?? 1000;
+    const samePageAnchors = dedupedCustomerAnchors
+      .filter((candidate) => candidate.pageIndex === anchor.pageIndex && candidate.boundingBox)
+      .sort((left, right) => left.boundingBox!.x - right.boundingBox!.x);
+    const anchorIndex = samePageAnchors.indexOf(anchor);
+    const previous = samePageAnchors[anchorIndex - 1]?.boundingBox;
+    const next = samePageAnchors[anchorIndex + 1]?.boundingBox;
+    const left = previous ? (previous.x + anchor.boundingBox.x) / 2 : anchor.boundingBox.x - pageWidth * 0.08;
+    const right = next ? (next.x + anchor.boundingBox.x) / 2 : anchor.boundingBox.x + pageWidth * 0.28;
+    const rotatedGeometry = anchor.boundingBox.height > anchor.boundingBox.width * 1.5;
+    const effectiveLeft = rotatedGeometry ? Math.min(left, anchor.boundingBox.x - pageWidth * 0.18) : left;
+    const effectiveRight = rotatedGeometry
+      ? Math.max(right, anchor.boundingBox.x + pageWidth * 0.20)
+      : Math.max(right, anchor.boundingBox.x + pageWidth * 0.46);
+    const effectiveTableHeaderY = firstTableHeaderY > anchor.boundingBox.y
+      ? firstTableHeaderY
+      : Number.POSITIVE_INFINITY;
+    const pageLines = ctx.linesByPage.get(anchor.pageIndex) ?? [];
+    const candidates = pageLines.filter((line) => {
+      if (line === anchor || !line.boundingBox) return false;
+      const sameRowRight = line.boundingBox.x >= anchor.boundingBox!.x + anchor.boundingBox!.width * 0.75 &&
+        Math.abs(line.boundingBox.y - anchor.boundingBox!.y) <= Math.max(35, anchor.boundingBox!.height * 1.5);
+      const sameRowLeft = line.boundingBox.x + line.boundingBox.width <= anchor.boundingBox!.x + 8 &&
+        Math.abs(line.boundingBox.y - anchor.boundingBox!.y) <= Math.max(40, anchor.boundingBox!.height * 1.8);
+      const sameRotatedBand = rotatedGeometry &&
+        Math.abs(line.boundingBox.y - anchor.boundingBox!.y) <= Math.max(80, anchor.boundingBox!.height * 1.8) &&
+        line.boundingBox.x >= anchor.boundingBox!.x - pageWidth * 0.16 &&
+        line.boundingBox.x <= anchor.boundingBox!.x + pageWidth * 0.20;
+      const verticalWindow = Math.max(pageWidth * 0.18, 260);
+      const below = line.boundingBox.y > anchor.boundingBox!.y
+        && (effectiveTableHeaderY === Number.POSITIVE_INFINITY
+          || line.boundingBox.y < effectiveTableHeaderY
+          || line.boundingBox.y < anchor.boundingBox!.y + verticalWindow);
+      const above = line.boundingBox.y + line.boundingBox.height < anchor.boundingBox!.y + 12
+        && anchor.boundingBox!.y - line.boundingBox.y < verticalWindow;
+      const searchLeft = Math.min(effectiveLeft, anchor.boundingBox!.x - pageWidth * 0.28);
+      const searchRight = Math.max(effectiveRight, anchor.boundingBox!.x + pageWidth * 0.28);
+      return (sameRowRight || sameRowLeft || sameRotatedBand || below || above)
+        && line.boundingBox.x >= searchLeft
+        && line.boundingBox.x < searchRight;
+    }).sort((first, second) => {
+      if (rotatedGeometry) {
+        const side = (line: DocumentLayoutLine) => line.boundingBox!.x <= anchor.boundingBox!.x ? 0 : 1;
+        const sideDifference = side(first) - side(second);
+        if (sideDifference !== 0) return sideDifference;
+        return side(first) === 0
+          ? second.boundingBox!.x - first.boundingBox!.x
+          : first.boundingBox!.x - second.boundingBox!.x;
+      }
+      const distance = (line: DocumentLayoutLine) => Math.hypot(
+        line.boundingBox!.x - anchor.boundingBox!.x,
+        line.boundingBox!.y - anchor.boundingBox!.y,
+      );
+      return distance(first) - distance(second);
+    });
+    return [anchor, ...candidates];
+  };
+
+  const partyStarted = Date.now();
+  const partyEntries: Array<{ role: StructuredParty['role']; party: StructuredParty | undefined }> = [];
+  const partyAnchorLimit = ctx.deadline !== undefined
+    ? Math.min(dedupedCustomerAnchors.length, 8)
+    : dedupedCustomerAnchors.length;
+  for (let index = 0; index < partyAnchorLimit; index += 1) {
+    if (index > 0 && ctx.timedOut()) break;
+    const anchor = dedupedCustomerAnchors[index];
+    const anchorText = ctx.normalize(anchor.text);
+    const role: StructuredParty['role'] = isRecipientAnchorText(anchorText)
+      ? 'recipient'
+      : /\bprospect\b/.test(anchorText)
+        ? 'prospect'
+        : 'customer';
+    partyEntries.push({
+      role,
+      party: buildParty(role, linesForAnchor(anchor), 'customer_name_near_anchor', ctx),
+    });
+  }
+  let customerParty = partyEntries.find((entry) => entry.role === 'customer')?.party;
+  let recipientParty = partyEntries.find((entry) => entry.role === 'recipient')?.party;
+  const prospectParty = partyEntries.find((entry) => entry.role === 'prospect')?.party;
+  // Geometry enrichment is useful but optional. Never let it consume the
+  // protected item budget after the metadata deadline has expired.
+  const geometricParties = ctx.timedOut()
+    ? {} as ReturnType<typeof resolvePartyBlocksFromLayout>
+    : resolvePartyBlocksFromLayout(pages);
+  if (geometricParties.customer) {
+    const geometricCustomer = buildParty(
+      'customer',
+      geometricParties.customer.lines,
+      'party_block_geometry',
+      ctx,
+    );
+    const currentName = customerParty?.name?.normalizedValue;
+    const geometricName = geometricCustomer?.name?.normalizedValue ?? geometricParties.customer.primaryName;
+    const geometricStrong = !!geometricName
+      && !isImplausibleOrganizationName(geometricName)
+      && !looksLikePartySectionHeading(geometricName)
+      && !looksLikeAddressLikeOrganizationName(geometricName)
+      && !looksLikeDeliveryRequestOrDateField(geometricName)
+      && geometricName.trim().split(/\s+/).filter(Boolean).length >= 2;
+    if (geometricStrong && (
+      !currentName
+      || isImplausibleOrganizationName(currentName)
+      || looksLikeOcrGarbageOrganization(currentName)
+      || looksLikePartySectionHeading(currentName)
+      || looksLikeAddressLikeOrganizationName(currentName)
+      || looksLikeDeliveryRequestOrDateField(currentName)
+      || samePartyName(currentName, geometricName)
+      || (!!geometricParties.customer.roleAnchor && geometricParties.customer.roleAnchor.role === 'customer'
+        && !samePartyName(currentName, geometricName))
+    )) {
+      customerParty = geometricCustomer ?? customerParty;
+      if (customerParty && !customerParty.name && geometricParties.customer.nameLine && geometricParties.customer.primaryName) {
+        customerParty = {
+          ...customerParty,
+          name: evidenceString(
+            geometricParties.customer.nameLine.text,
+            geometricParties.customer.primaryName,
+            [geometricParties.customer.nameLine],
+            'party_block_geometry',
+            true,
+          ),
+          requiresReview: false,
+        };
+      }
+    }
+    if (customerParty && !customerParty.vatNumber && geometricParties.customer.vatLine && geometricParties.customer.vatIdentifiers[0]) {
+      customerParty.vatNumber = evidenceString(
+        geometricParties.customer.vatLine.text,
+        geometricParties.customer.vatIdentifiers[0],
+        [geometricParties.customer.vatLine],
+        'party_block_vat_integrity',
+        true,
+      );
+    }
+  }
+  if (geometricParties.recipient && !recipientParty?.name) {
+    recipientParty = buildParty('recipient', geometricParties.recipient.lines, 'party_block_geometry', ctx) ?? recipientParty;
+  }
+  reconcileDuplicatePartyNames([customerParty, recipientParty], ctx.allLines);
+  logMetadataPerf('parties', {
+    anchors: dedupedCustomerAnchors.length,
+    customer: !!customerParty?.name,
+    recipient: !!recipientParty?.name,
+    ms: Date.now() - partyStarted,
+  });
+
+  if (ctx.timedOut() && !options?.partiesOnly) {
+    logMetadataPerf('deadlineYieldToItems', { ms: Date.now() - started });
+    return {
+      metadata,
+      ...(customerParty ? { customer: customerParty } : {}),
+      ...(recipientParty ? { recipient: recipientParty } : {}),
+      ...(prospectParty ? { prospect: prospectParty } : {}),
+      reasons: ['metadata_deadline_exceeded'],
+      requiresReview: true,
+    };
+  }
+
+  if (options?.partiesOnly) {
+    logMetadataPerf('done', { ms: Date.now() - started, timedOut: ctx.timedOut(), partiesOnly: true });
+    return {
+      metadata: {},
+      ...(customerParty ? { customer: customerParty } : {}),
+      ...(recipientParty ? { recipient: recipientParty } : {}),
+      ...(prospectParty ? { prospect: prospectParty } : {}),
+      reasons: ctx.timedOut() ? ['metadata_deadline_exceeded'] : [],
+      requiresReview: !!customerParty?.requiresReview || !!recipientParty?.requiresReview || !!prospectParty?.requiresReview,
+    };
+  }
+
+  const issuerStarted = Date.now();
+  const firstPageIndex = Math.min(...pages.map((page) => page.pageIndex));
+  const issuerPageIndex = customerAnchor && customerPageLines.some((line) => line.boundingBox && line.boundingBox.y < (customerAnchor.boundingBox?.y ?? 0) && LEGAL_FORM.test(line.text))
+    ? customerAnchor.pageIndex
+    : firstPageIndex;
+  const issuerBoundary = issuerPageIndex === customerAnchor?.pageIndex ? customerAnchor.boundingBox?.y : Number.POSITIVE_INFINITY;
+  const issuerLines = customerAnchor?.boundingBox
+    ? ctx.allLines.filter((line) => {
+        if (line.pageIndex !== issuerPageIndex || !line.boundingBox) return false;
+        const page = pages.find((candidate) => candidate.pageIndex === line.pageIndex);
+        const pageWidth = page?.width ?? Number.POSITIVE_INFINITY;
+        const headerCandidate = line.boundingBox.y < (issuerBoundary ?? Number.POSITIVE_INFINITY) &&
+          line.boundingBox.x < pageWidth * 0.62 &&
+          !ctx.inferDocumentType(line.text) &&
+          !organizationNameFromLine(line.text).customerLabeled;
+        const footerIdentity = !!page?.height && line.boundingBox.y > page.height * 0.72 &&
+          (LEGAL_FORM.test(line.text) || WEBSITE.test(line.text) || EMAIL.test(line.text));
+        return headerCandidate || footerIdentity;
+      })
+    : zoneLines(pages, ['issuer', 'header', 'footer']).filter((line) => !organizationNameFromLine(line.text).customerLabeled);
+  let issuer = buildParty('issuer', issuerLines, 'issuer_name_in_header_or_footer', ctx);
+  if (geometricParties.issuer?.primaryName && geometricParties.issuer.nameLine) {
+    const customerOnlyIssuer = geometricParties.issuer.roleEligibility === 'customer'
+      || geometricParties.issuer.roleAnchor?.role === 'customer'
+      || geometricParties.issuer.roleAnchor?.role === 'recipient'
+      || samePartyName(geometricParties.issuer.primaryName, geometricParties.customer?.primaryName);
+    const geometricName = geometricParties.issuer.primaryName;
+    const currentName = issuer?.name?.normalizedValue;
+    const geometricQuality = organizationQualityScore(geometricName, {
+      hasAddress: geometricParties.issuer.addressLines.length > 0,
+      hasVat: geometricParties.issuer.vatIdentifiers.length > 0,
+      hasEmail: !!geometricParties.issuer.email,
+      hasPhone: !!geometricParties.issuer.phone,
+      hasLegalSuffix: /\b(?:s\.?r\.?l\.?|s\.?p\.?a\.?|sarl|gmbh|ltd\.?|inc\.?|s\.?l\.?)\b/i.test(geometricName),
+    });
+    const currentQuality = organizationQualityScore(currentName ?? '');
+    if (
+      !customerOnlyIssuer
+      && !looksLikeOcrGarbageOrganization(geometricName)
+      && (
+        !currentName
+        || looksLikeOcrGarbageOrganization(currentName)
+        || isImplausibleOrganizationName(currentName)
+        || geometricQuality >= currentQuality + 0.15
+      )
+    ) {
+      const geometricIssuer = buildParty('issuer', geometricParties.issuer.lines, 'party_block_geometry', ctx);
+      issuer = geometricIssuer ?? issuer;
+      if (issuer && (!issuer.name || looksLikeOcrGarbageOrganization(issuer.name.normalizedValue ?? ''))) {
+        issuer = {
+          ...(issuer ?? { role: 'issuer' as const, conflicts: [], requiresReview: false }),
+          name: evidenceString(
+            geometricParties.issuer.nameLine.text,
+            geometricName,
+            [geometricParties.issuer.nameLine],
+            'party_block_geometry',
+            true,
+          ),
+          requiresReview: false,
+        };
+      }
+    }
+  }
+  if (!issuer?.name) {
+    const domainBacked = issuerNameCorroboratedByDomain(ctx.allLines);
+    if (domainBacked?.name) {
+      issuer = {
+        role: 'issuer',
+        name: evidenceString(
+          domainBacked.line.text,
+          domainBacked.name,
+          [domainBacked.line],
+          'issuer_domain_corroborated',
+          true,
+        ),
+        conflicts: [],
+        requiresReview: false,
+      };
+    }
+  }
+  const paymentFields = extractContactFields(ctx.allLines);
+  if (issuer) {
+    if (!issuer.iban && paymentFields.iban) issuer.iban = paymentFields.iban;
+    if (!issuer.bic && paymentFields.bic) issuer.bic = paymentFields.bic;
+    if (!issuer.bankName && paymentFields.bankName) issuer.bankName = paymentFields.bankName;
+    if (!issuer.website && paymentFields.website) issuer.website = paymentFields.website;
+  }
+  if (issuer?.name?.normalizedValue) {
+    const domainPreferred = issuerNameCorroboratedByDomain(ctx.allLines);
+    if (domainPreferred?.name) {
+      const currentCompact = compactOrganizationToken(issuer.name.normalizedValue);
+      const preferredCompact = compactOrganizationToken(domainPreferred.name);
+      if (!tokenMatchesDomainRoot(currentCompact, preferredCompact) && currentCompact !== preferredCompact) {
+        issuer.name = evidenceString(
+          domainPreferred.line.text,
+          domainPreferred.name,
+          [domainPreferred.line],
+          'issuer_domain_corroborated',
+          true,
+        );
+      }
+    }
+    const issuerName = issuer.name.normalizedValue;
+    if (issuerName === undefined) {
+      // Should be unreachable because of the outer guard `issuer?.name?.normalizedValue`.
+      // Leaving the issuer untouched is safer than inventing evidence.
+    } else {
+      const issuerLine =
+        issuerLines.find((line) => cleanPartyName(line.text) === issuerName) ?? issuerLines[0];
+      const page = pages.find((candidate) => candidate.pageIndex === issuerLine?.pageIndex);
+      const yRatio =
+        issuerLine?.boundingBox && page?.height ? issuerLine.boundingBox.y / page.height : 0.5;
+      const neighborTexts = issuerLines
+        .filter((line) => issuerLine && Math.abs(line.readingOrder - issuerLine.readingOrder) <= 4)
+        .map((line) => line.text);
+      const decision = scoreIssuerCandidate({
+        name: issuerName,
+        yRatio,
+        inHeaderZone: yRatio <= 0.32,
+        inSenderBlock:
+          yRatio <= 0.45 && (issuerLine?.boundingBox?.x ?? 0) < ((page?.width ?? 1000) * 0.62),
+        hasStrongLegalForm: hasStrongIssuerLegalForm(issuerName),
+        hasWeakSaOnly: hasWeakSaOnlyLegalForm(issuerName),
+        nearbyVat: issuerLines.some((line) => /\b(?:p\.?\s*iva|vat|tva|mwst|ust)\b/i.test(line.text)),
+        nearbyAddress: !!issuer.address,
+        nearbyWebsite: !!issuer.website || issuerLines.some((line) => WEBSITE.test(line.text)),
+        inPaymentZone:
+          isPaymentSectionContext(issuerLine?.text ?? '') ||
+          isRejectedIssuerName(issuerLine?.text ?? ''),
+        nearbyPaymentContext: yRatio > 0.55 && isPaymentSectionContext(issuerName, neighborTexts),
+      });
+      if (!decision.accept) {
+        const domainBacked = issuerNameCorroboratedByDomain(ctx.allLines);
+        if (domainBacked?.name) {
+          issuer.name = evidenceString(
+            domainBacked.line.text,
+            domainBacked.name,
+            [domainBacked.line],
+            'issuer_domain_corroborated',
+            true,
+          );
+        } else {
+          delete issuer.name;
+          issuer.requiresReview = true;
+          issuer.conflicts.push(decision.rejectReason ?? 'issuer_evidence_rejected');
+        }
+      }
+    }
+  }
+  logMetadataPerf('issuer', { lines: issuerLines.length, found: !!issuer?.name, ms: Date.now() - issuerStarted });
+  if (issuer?.name?.normalizedValue) {
+    const issuerRoot = normalizeDocumentText(issuer.name.normalizedValue).replace(/[^a-z0-9]/g, '').replace(/(?:spa|srl|group)$/i, '');
+    const issuerEmailLine = ctx.allLines.find((line) => {
+      const email = line.text.match(EMAIL)?.[0];
+      if (!email) return false;
+      const domainRoot = email.split('@')[1]?.split('.')[0]?.replace(/(?:group|holding|company)$/i, '') ?? '';
+      return domainRoot.length >= 3 && (issuerRoot.includes(domainRoot) || domainRoot.includes(issuerRoot));
+    });
+    const issuerEmail = issuerEmailLine?.text.match(EMAIL)?.[0];
+    if (issuerEmail && issuerEmailLine) {
+      issuer.email = evidenceString(issuerEmail, issuerEmail.toLowerCase(), [issuerEmailLine], 'email_domain_corroborates_issuer', true);
+    }
+    const salesLabel = ctx.deadline !== undefined || ctx.timedOut()
+      ? undefined
+      : ctx.allLines.find((line) => {
+        const text = normalizeDocumentText(line.text).replace(/[^a-z]/g, '');
+        return editDistance(text, 'addettovendite') <= 3 || editDistance(text, 'salescontact') <= 3;
+      });
+    const salesContact = salesLabel?.boundingBox
+      ? ctx.allLines.filter((line) => line.pageIndex === salesLabel.pageIndex && line !== salesLabel && line.boundingBox &&
+          /^[A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f' -]{4,60}$/.test(line.text.trim()) &&
+          !/\b(?:clienti|customer|sales|vendite|direzionali|department|ufficio|promozionali|pagamento|bonifico|anticipato|porto|consegna|fattura)\b/i.test(line.text) &&
+          line.text.trim().split(/\s+/).length >= 2 && line.text.trim().split(/\s+/).length <= 5 &&
+          Math.abs(line.boundingBox.y - salesLabel.boundingBox!.y) <= Math.max(100, salesLabel.boundingBox!.height * 5) &&
+          line.boundingBox.x > salesLabel.boundingBox!.x)
+        .sort((left, right) => Math.hypot(left.boundingBox!.x - salesLabel.boundingBox!.x, left.boundingBox!.y - salesLabel.boundingBox!.y) -
+          Math.hypot(right.boundingBox!.x - salesLabel.boundingBox!.x, right.boundingBox!.y - salesLabel.boundingBox!.y))[0]
+      : undefined;
+    if (salesContact) {
+      issuer.contactPerson = evidenceString(salesContact.text, salesContact.text.trim(), [salesLabel!, salesContact], 'sales_contact_near_label');
+    }
+    const phoneAnchor = salesContact ?? issuerEmailLine;
+    const issuerPhone = phoneAnchor?.boundingBox
+      ? ctx.allLines.filter((line) => line.pageIndex === phoneAnchor.pageIndex && /\b(?:tel|tef|phone)\s*:/i.test(line.text) && line.boundingBox)
+        .sort((left, right) => Math.hypot(left.boundingBox!.x - phoneAnchor.boundingBox!.x, left.boundingBox!.y - phoneAnchor.boundingBox!.y) -
+          Math.hypot(right.boundingBox!.x - phoneAnchor.boundingBox!.x, right.boundingBox!.y - phoneAnchor.boundingBox!.y))[0]
+      : undefined;
+    const phoneValue = issuerPhone?.text.match(/\b(?:tel|tef|phone)\s*:\s*(\+?[\d][\d\s().\/-]{6,})/i)?.[1];
+    if (issuerPhone && phoneValue) {
+      issuer.phone = evidenceString(phoneValue, phoneValue.replace(/\s+/g, ' ').trim(), [issuerPhone], 'phone_near_issuer_contact');
+    }
+  }
+
+  const partyEvidence = (party?: StructuredParty): PartyNameEvidence => {
+    const addressText = String(party?.address?.full?.normalizedValue ?? '');
+    const sourced = `${addressText} ${(party?.name?.sourceLines ?? []).join(' ')}`;
+    const name = String(party?.name?.normalizedValue ?? '');
+    const compactName = normalizeDocumentText(name)
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+    const websiteCorroborates = compactName.length >= 3 && ctx.allLines.some((line) =>
+      (line.text.toLowerCase().match(/[a-z0-9-]+\.(?:com|it|eu|net|org|de|ch)\b/g) ?? [])
+        .map((domain) => domain.split('.')[0].replace(/(?:group|holding|company)$/i, ''))
+        .some((root) => compactName === root || (compactName.endsWith(root) && compactName.length - root.length === 1)),
+    );
+    return {
+      hasAddress: !!party?.address?.full || ADDRESS_SIGNAL.test(sourced),
+      hasPostal: /\b\d{4,5}\b/.test(addressText) || /\b\d{4,5}\b/.test(sourced),
+      hasVat: !!party?.vatNumber,
+      hasPhone: !!party?.phone,
+      hasEmail: !!party?.email,
+      hasWebsite: !!party?.website || WEBSITE.test(sourced) || websiteCorroborates,
+      hasLegalSuffix: LEGAL_FORM.test(String(party?.name?.normalizedValue ?? '')) || LEGAL_FORM.test(sourced),
+    };
+  };
+  if (
+    issuer?.name?.normalizedValue
+    && !(issuer.name.reasons ?? []).includes('issuer_domain_corroborated')
+    && !organizationNameAllowed(issuer.name.normalizedValue, partyEvidence(issuer))
+  ) {
+    const domainBacked = issuerNameCorroboratedByDomain(ctx.allLines);
+    if (domainBacked?.name) {
+      issuer.name = evidenceString(
+        domainBacked.line.text,
+        domainBacked.name,
+        [domainBacked.line],
+        'issuer_domain_corroborated',
+        true,
+      );
+    } else {
+      delete issuer.name;
+      issuer.requiresReview = true;
+      issuer.conflicts.push('implausible_issuer_name');
+    }
+  }
+  if (customerParty?.name?.normalizedValue && !organizationNameAllowed(customerParty.name.normalizedValue, partyEvidence(customerParty))) {
+    delete customerParty.name;
+    customerParty.requiresReview = true;
+    customerParty.conflicts.push('implausible_customer_name');
+  }
+  if (!customerParty?.name?.normalizedValue) {
+    const semanticCustomerLines = ctx.allLines.filter((line) =>
+      line.semanticRegion === 'customer_block' && !ctx.tableLineIds.has(line.id)
+    );
+    const semanticCustomer = buildParty('customer', semanticCustomerLines, 'customer_semantic_region_recovery', ctx);
+    const semanticName = semanticCustomer?.name?.normalizedValue;
+    if (
+      semanticCustomer?.name
+      && semanticName
+      && !looksLikeOcrGarbageOrganization(semanticName)
+      && !isImplausibleOrganizationName(semanticName)
+      && !looksLikePartySectionHeading(semanticName)
+      && !samePartyName(semanticName, issuer?.name?.normalizedValue)
+    ) {
+      customerParty = semanticCustomer;
+    }
+  }
+  if (recipientParty?.name?.normalizedValue && !organizationNameAllowed(recipientParty.name.normalizedValue, partyEvidence(recipientParty))) {
+    delete recipientParty.name;
+    recipientParty.requiresReview = true;
+    recipientParty.conflicts.push('implausible_recipient_name');
+  }
+  const exclusive = resolveExclusivePartyRoles({
+    issuer: issuer?.name?.normalizedValue,
+    customer: customerParty?.name?.normalizedValue,
+  });
+  if (issuer?.name && exclusive.issuer === null) {
+    delete issuer.name;
+    issuer.conflicts.push('issuer_customer_role_exclusive');
+  }
+  if (customerParty?.name && exclusive.customer === null) {
+    delete customerParty.name;
+    customerParty.conflicts.push('issuer_customer_role_exclusive');
+  }
+  if (
+    !customerParty?.name
+    && geometricParties.customer?.primaryName
+    && !samePartyName(geometricParties.customer.primaryName, exclusive.issuer)
+    && !looksLikeOcrGarbageOrganization(geometricParties.customer.primaryName)
+    && !isImplausibleOrganizationName(geometricParties.customer.primaryName)
+    && !looksLikePartySectionHeading(geometricParties.customer.primaryName)
+  ) {
+    const restored = buildParty('customer', geometricParties.customer.lines, 'party_block_geometry', ctx);
+    if (restored?.name && !samePartyName(restored.name.normalizedValue, exclusive.issuer)) {
+      customerParty = restored;
+    } else if (geometricParties.customer.nameLine) {
+      customerParty = {
+        role: 'customer',
+        name: evidenceString(
+          geometricParties.customer.nameLine.text,
+          geometricParties.customer.primaryName,
+          [geometricParties.customer.nameLine],
+          'party_block_geometry',
+          true,
+        ),
+        conflicts: [],
+        requiresReview: false,
+      };
+    }
+  }
+  if (
+    customerParty?.vatNumber?.normalizedValue
+    && issuer?.vatNumber?.normalizedValue
+    && customerParty.vatNumber.normalizedValue === issuer.vatNumber.normalizedValue
+  ) {
+    delete customerParty.vatNumber;
+    customerParty.conflicts.push('customer_vat_detached_from_issuer_block');
+  }
+  detachIssuerOwnedFields(issuer, customerParty, ctx);
+  detachIssuerOwnedFields(issuer, recipientParty, ctx);
+  detachIssuerOwnedFields(issuer, prospectParty, ctx);
+
+  for (const party of [customerParty, recipientParty, prospectParty]) {
+    if (issuer?.name?.normalizedValue && party?.name?.normalizedValue &&
+      normalizeDocumentText(issuer.name.normalizedValue) === normalizeDocumentText(party.name.normalizedValue)) {
+      issuer.conflicts.push('issuer_customer_same_name');
+      issuer.requiresReview = true;
+      party.conflicts.push('issuer_customer_same_name');
+      party.requiresReview = true;
+    }
+  }
+
+  const vehicleStarted = Date.now();
+  const vehicle = extractVehicle(ctx.metadataLines);
+  logMetadataPerf('vehicle', { found: !!vehicle, ms: Date.now() - vehicleStarted });
+  const reasons: string[] = [];
+  if (metadataTimedOut || ctx.timedOut()) reasons.push('metadata_deadline_exceeded');
+  if (!issuer?.name) reasons.push('issuer_missing_or_ambiguous');
+  if (!customerParty?.name && !recipientParty?.name && declaredType !== 'free_document') reasons.push('customer_missing_or_ambiguous');
+  if (!metadata.documentNumber && declaredType !== 'free_document') reasons.push('document_number_missing');
+  logMetadataPerf('done', { ms: Date.now() - started, timedOut: ctx.timedOut() });
+  return {
+    metadata,
+    issuer,
+    ...(vehicle ? { vehicle } : {}),
+    ...(customerParty ? { customer: customerParty } : {}),
+    ...(recipientParty ? { recipient: recipientParty } : {}),
+    ...(prospectParty ? { prospect: prospectParty } : {}),
+    reasons,
+    requiresReview: reasons.length > 0 || !!issuer?.requiresReview || !!customerParty?.requiresReview || !!recipientParty?.requiresReview || !!prospectParty?.requiresReview,
+  };
+}
+
+/** Estrazione party da layout OCR: etichetta → valore nella stessa colonna/riga. */
+export function inferCustomerNameFromLayoutPages(
+  pages: readonly StructuredDocumentPage[],
+  documentType: StructuredDocumentType,
+): string | undefined {
+  if (!pages.some((page) => page.lines.some((line) => line.boundingBox))) {
+    return undefined;
+  }
+  const identity = extractDocumentIdentity(pages, documentType, { partiesOnly: true });
+  const quoteLike = documentType === 'quote' || documentType === 'free_document';
+  const chosen = quoteLike
+    ? identity.recipient?.name?.normalizedValue ?? identity.customer?.name?.normalizedValue ?? identity.prospect?.name?.normalizedValue
+    : identity.customer?.name?.normalizedValue ?? identity.recipient?.name?.normalizedValue ?? identity.prospect?.name?.normalizedValue;
+  const cleaned = chosen?.trim();
+  if (!cleaned || isTaxOrFiscalLabelText(cleaned) || isDocumentTypeHeaderText(cleaned)) {
+    return undefined;
+  }
+  return cleaned;
+}

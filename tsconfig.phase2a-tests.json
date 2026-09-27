@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "tests/document-page-extraction.test.ts",
+    "lib/document-page-extraction.ts",
+    "lib/gemini-document-extract.ts",
+    "lib/gemini-ocr.ts",
+    "lib/local-ocr-pages.ts",
+    "lib/document-ai-review.ts",
+    "lib/document-parser.ts",
+    "lib/persistence.ts",
+    "types/**/*.ts"
+  ]
+}

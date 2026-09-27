@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "Business Scanner & AI",
+    "slug": "business-scanner-ai",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "business-card-scanner-ai",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0e2438"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mybizscanner.ai",
+      "infoPlist": {
+        "NSCameraUsageDescription": "L'app usa la fotocamera per scansionare documenti e biglietti da visita.",
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
+      },
+      "requireFullScreen": true
+    },
+    "android": {
+      "allowBackup": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0e2438"
+      },
+      "package": "com.mybizscanner.ai",
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "CAMERA",
+        "INTERNET",
+        "WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "L'app usa la fotocamera per scansionare documenti e biglietti da visita.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "DEFAULT"
+        }
+      ],
+      "expo-sqlite",
+      "expo-asset",
+      "expo-font",
+      "expo-mail-composer"
+    ]
+  }
+}
+

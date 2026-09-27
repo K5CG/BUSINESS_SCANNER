@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "tests/document-field-reliability.test.ts",
+    "tests/document-field-reliability-flow.test.ts",
+    "tests/document-direct-reliability.test.ts"
+  ]
+}

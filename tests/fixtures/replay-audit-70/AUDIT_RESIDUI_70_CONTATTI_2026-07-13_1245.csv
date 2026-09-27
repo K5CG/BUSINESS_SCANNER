@@ -1,0 +1,55 @@
+﻿n;title;field;actual;expected;severity;class;note
+5;I3P - Massimiliano Ceglio;lastName;Ceglio;Ceaglio;high;OCR/person reconciliation;Il cognome è leggibile sul biglietto e coerente con email ceaglio@i3p.it.
+5;I3P - Massimiliano Ceglio;address;13P S.c.p.a. Corso Castelfidardo 30/A, 10129 Torino T +39;Corso Castelfidardo 30/A - 10129 Torino - TO - IT;high;address contamination;Company e prefisso telefono contaminano l'indirizzo.
+7;Domofacile - Daniela Gavasso;address;;;medium;OCR limitation / non-testable expected;Nessun valore indirizzo concreto affidabile nel RAW: il vecchio expected era una nota, non un dato verificabile.
+8;Jaspersoft Ltd - Ojas Persoft;person;Ojas Persoft;Evanna Kearins;critical;wrong person;"La persona visibile sul fronte è Evanna Kearins; titolo e campi non appartengono al biglietto."
+8;Jaspersoft Ltd - Ojas Persoft;role;Director Marketing, EMEA;;low;historical expected mismatch;Il ruolo apparteneva alla persona storicamente errata e non deve essere richiesto dopo la riconciliazione della persona.
+9;Tuglak - Tmimotorbike Nd;person;Tmimotorbike Nd;M. Ashraf Tuglak;critical;logo as person;Logo/descrittore usato come persona.
+9;Tuglak - Tmimotorbike Nd;company;Tuglak;Tuglak;high;historical expected mismatch;RAW non giustifica Motorbike Industries con affidabilità: preservato il brand osservato Tuglak.
+10;INFORMATICA;company;INFORMATICA;"Nome azienda da verificare sul biglietto; non solo categoria generica";high;generic word as company;"Titolo troppo generico; P.IVA persa rispetto al round precedente."
+10;INFORMATICA;vatNumber;;03100160484;high;fiscal regression;"Nel round precedente era presente; ora è sparita."
+14;Informeticons - Andrea Grigoli;company;Informeticons;InformEtico Consulting srl.;high;historical expected mismatch;Expected riallineato al raw OCR osservato.
+14;Informeticons - Andrea Grigoli;address;Viole Del Lovoro, 33- Centro Direzionale E33 - 37036 - Son Martino Buon Albergo Vr - (VR) - IT;Viole Del Lovoro, 33- Centro Direzionale E33 - 37036 - Son Martino Buon Albergo Vr - VR - IT;high;OCR limitation;Expected riallineato al testo OCR realmente osservato: nessuna correzione lessicale inventata.
+14;Informeticons - Andrea Grigoli;vatNumber;;03481148023;high;fiscal regression;P.IVA sparita rispetto al round precedente.
+19;Katiepebu - Ersitas Boston;company;Katiepebu;Boston University / Division of Extended Education, Metropolitan College;critical;email/local-part as company;Company inventata dal testo OCR/email.
+19;Katiepebu - Ersitas Boston;person;Ersitas Boston;Katie Pasciucco;high;historical expected typo;Expected storico corretto sul raw OCR: Pasciucco.
+23;Istituto Zooprofilattico Sperimnentale delle Venezie - Andrea Ponzoni;company;Istituto Zooprofilattico Sperimnentale delle Venezie;Istituto Zooprofilattico Sperimnentale delle Venezie;medium;OCR limitation;Expected riallineato al RAW: il parser non deve inventare la correzione ortografica.
+25;XMedical - Valerio Bignardi;address;Vicolo Zagaria, 4 - 31055;Vicolo Zagaria, 4 - 31055 - Quinto di Treviso - TV;medium;historical expected mismatch;"Città e provincia sono ora presenti; paese IT non richiesto se non osservato."
+29;For Industry - Alessio Giullano;lastName;Giullano;Giullano;high;historical expected mismatch;RAW OCR ed email concordano su Giullano.
+29;For Industry - Alessio Giullano;role;GarbuIoDICKINson GrOUp CIO;Group CIO;high;role contamination;Azienda/brand contaminano il ruolo.
+29;For Industry - Alessio Giullano;address;Via E. Azzi, 1 -bio3bpaese (TV) Italy;Via E. Azzi, 1 - 31033 Castelfranco Veneto/Paese da verificare - TV - IT;high;address OCR corruption;Località fortemente corrotta.
+31;Serenissima Informatica S.p.A - Filippo Filippo;person;Filippo Filippo;Filippo Filippi;high;missing person;RAW OCR ed email confermano Filippo Filippi.
+33;EXHAUST SYSTÈM - Exhaust Systèm;person;Exhaust Systèm;;critical;brand as person;Il brand viene inventato come persona.
+33;EXHAUST SYSTÈM - Exhaust Systèm;company;EXHAUST SYSTÈM;LM Exhaust System;high;company incomplete;Marchio LM perso.
+38;A KNOWLEDGE COMPANY - Giorgio Pellizzaro;company;A KNOWLEDGE COMPANY;Scuola Italiana Design;high;historical expected mismatch;Nome istituto osservato esplicitamente nel raw OCR, Galileo Visionary District non presente.
+38;A KNOWLEDGE COMPANY - Giorgio Pellizzaro;address;didoica: 35127 Padova - Z.i. Sud - Corso Stati Uniti, 14 Bis - Galileo;Corso Stati Uniti, 14 Bis - 35127 Padova - PD - IT;high;address contamination;Etichetta e brand contaminano l'indirizzo.
+39;SERVOV Next Generation Platform - Enrico Arata;company;SERVOV Next Generation Platform;Servoy;medium;OCR typo/company descriptor;Errore OCR Y→V e slogan incluso.
+39;SERVOV Next Generation Platform - Enrico Arata;address;Corso Massimo D'azeglio, 8 - Responsabile Servoy - IT;Corso Massimo D'azeglio, 8 - Torino - TO - IT;high;OCR limitation;RAW contiene IO15 e non 10125: CAP corretto non ricostruibile senza inventare.
+41;Sinergiaimpianti;address;Via Campazzi, 32/a - 36016 - Thi;Via Campazzi, 32/A - 36016 Thiene - VI - IT;high;address truncation;Città troncata.
+43;Thenissoluzioni - Antonio Gaboardi;company;Thenissoluzioni;Themis Soluzioni / nome corretto leggibile dal biglietto;medium;brand OCR typo;Brand ancora deformato.
+43;Thenissoluzioni - Antonio Gaboardi;address;Uia F Lana L - 25020 - Flero - BS - IT;Via F. Lana, 1 - 25020 Flero - BS - IT;high;address OCR corruption;Via e civico corrotti/persi.
+44;OrientoForm S.n.c;company;OrientoForm S.n.c;OrientaForm S.n.c.;medium;brand OCR typo;O al posto di A.
+44;OrientoForm S.n.c;vatNumber;;03674360247;high;VAT/CF classification;Il numero è stato messo nel taxCode, non in P.IVA.
+45;Pasubio - Giantonio Menegozzo;company;Pasubio;Termoidraulica Pasubio;high;company incomplete;Descrittore essenziale perso.
+47;ORIUM - Marco Tagliabue;company;ORIUM;ORIUM;high;historical expected mismatch;Raw OCR osservato: ORIUM, nessuna evidenza per inventare CORIUM.
+47;ORIUM - Marco Tagliabue;address;Via Correugio., 78 - 20149 Roma - RM - IT;Via Correugio, 19 - 20149 Milano - MI - IT;high;historical expected mismatch;Expected storico corretto: il raw OCR associa 19 a Milano e 78 a Roma.
+49;Venetoavvocati - Paolo Avy Dal Soglio;company;Venetoavvocati;Studio Legale Associato Mondin-Campesan-Urbani-Messuri;high;domain as company;Dominio usato al posto dello studio.
+49;Venetoavvocati - Paolo Avy Dal Soglio;person;Paolo Avy Dal Soglio;Paolo Dal Soglio;high;field semantics;Titolo professionale Avv. escluso dal campo persona.
+50;Corvallis S.p.A. a Socio Unico - Pierluigi Valenti;role;A Socio Unico;Responsabile Vendite e Sviluppo Offerta GIS e Cartografia;critical;legal phrase as role;La forma societaria viene usata come ruolo.
+51;Mirco Bettelini - Mirco Bettelini;company;Mirco Bettelini;;medium;person as company;Professionista individuale: non duplicare la persona nella company.
+54;Hepco&Becker GMBH;role;Sede Commerciale;;medium;location label as role;Etichetta sede scambiata per ruolo.
+55;(Private) Limited - Saad Latif;company;(Private) Limited;SHEIKH OF SIALKOT (Private) Limited;critical;legal form only;Resta solo la forma giuridica.
+56;G&HNTERNATIONAL CO LTD;company;G&HNTERNATIONAL CO LTD;G&HNTERNATIONAL CO, LTD.;high;OCR limitation;RAW OCR non contiene la I mancante in HNTERNATIONAL.
+57;Intercasa s.r.I.u - Filippo Faccin;company;Intercasa s.r.I.u;Intercasa S.r.l.u;medium;formatting-only;Punto terminale non semantico: expected normalizzato al valore societario equivalente.
+58;Net-informatica Srl - Federico Massi;address;Via Prà Bordoni, 46 - 36010 Zanè - MI - IT;Via Prà Bordoni, 46 - 36010 Zanè - VI - IT;critical;wrong province;Provincia MI invece di VI.
+61;Carrozzzeria - Carrozzzeria Cristallo;company;Carrozzzeria;Carrozzeria Cristallo;critical;generic word/incomplete company;Refuso e nome incompleto.
+61;Carrozzzeria - Carrozzzeria Cristallo;person;Carrozzzeria Cristallo;;critical;company as person;Azienda duplicata nel campo persona.
+62;Schinasi Insurance Brokers S.r.l - Insurance Brokers;person;Insurance Brokers;Stefano Ruberti;high;historical expected mismatch;RAW OCR ed email confermano Stefano Ruberti.
+63;Kawasaki - Raimondo Balduzzo;company;Kawasaki;Only Type;high;historical expected mismatch;RAW mostra Only Type come attività e Balduzzo Raimondo separatamente come titolare.
+65;Faceconsulting;company;Faceconsulting;Face Consulting;medium;historical expected mismatch;Company e persona sono campi distinti: rimosso il nome persona dall'expected company.
+65;Faceconsulting;person;;Alessio Zaramella;high;missing person;Nome chiaramente visibile.
+66;SCOUT s.r.l. Blocco 38 Bis - Christian Pezzin;company;SCOUT s.r.l. Blocco 38 Bis;SCOUT S.r.l.;high;address fragment in company;Blocco 38 Bis è parte dell'indirizzo.
+67;IMMOBILIARE SUN HOUSE S.r.l - Lorena Cervo;role;Responsabile Ufficio AFFILIATO;Responsabile Ufficio;medium;badge/label in role;AFFILIATO è etichetta di rete, non ruolo.
+68;ATROX - Asim Nayyer;duplicate;Secondo contatto duplicato dello stesso biglietto;;high;out-of-scope parser;Duplicate detection è fuori dal parser V5 del singolo biglietto e non può essere un gate di estrazione.
+69;Paolo Coletto;company;;Mototecnica;high;historical expected mismatch;"RAW osserva MOTOTECNICA; Shop deriva da OCR 2HOPI e non è abbastanza affidabile da imporre."
+70;Stefano Leorato;role;;Istruttore CSEN 1° livello;medium;missing role;Ruolo chiaramente visibile.

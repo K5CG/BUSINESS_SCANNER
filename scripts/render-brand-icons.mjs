@@ -1,0 +1,78 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(__dirname, '..');
+const assets = path.join(root, 'assets');
+const userSrc = path.join(assets, 'icon-source-user.png');
+const svgPath = path.join(assets, 'brand-icon.svg');
+const input = fs.existsSync(userSrc) ? userSrc : svgPath;
+
+/** Canvas master Expo / Play Store. */
+const CANVAS = 1024;
+/** Sfondo brand (adaptive icon Android + splash). */
+const BRAND_BG = { r: 14, g: 36, b: 56, alpha: 1 }; // #0e2438
+/**
+ * Android adaptive icon: area visibile garantita = cerchio 66 dp su layer 108 dp.
+ * 1024 × (66/108) ≈ 626 px — tutto il logo deve stare qui dentro.
+ */
+const ANDROID_SAFE_RATIO = 66 / 108;
+const SAFE_SIZE = Math.round(CANVAS * ANDROID_SAFE_RATIO);
+
+const targets = [
+  { file: 'icon.png', size: CANVAS },
+  { file: 'adaptive-icon.png', size: CANVAS },
+];
+
+async function loadLogoBuffer(src, maxSize) {
+  if (src.endsWith('.svg')) {
+    const svg = fs.readFileSync(src);
+    return sharp(svg, { density: 300 })
+      .resize(maxSize, maxSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+  }
+  return sharp(src)
+    .resize(maxSize, maxSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+}
+
+async function composeOnBrandCanvas(logoBuffer, size) {
+  const inset = Math.round(size * ANDROID_SAFE_RATIO);
+  const scaled = await sharp(logoBuffer)
+    .resize(inset, inset, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
+  return sharp({
+    create: { width: size, height: size, channels: 4, background: BRAND_BG },
+  })
+    .composite([{ input: scaled, gravity: 'center' }])
+    .png()
+    .toBuffer();
+}
+
+console.log(
+  `[render-brand-icons] Canvas ${CANVAS}px — zona sicura Android ${SAFE_SIZE}px (cerchio centrale, ~${Math.round((1 - ANDROID_SAFE_RATIO) * 50)}% margine per lato)`
+);
+
+const logoBuffer = await loadLogoBuffer(input, SAFE_SIZE);
+
+for (const { file, size } of targets) {
+  const out = path.join(assets, file);
+  const png = await composeOnBrandCanvas(logoBuffer, size);
+  await sharp(png).toFile(out);
+  console.log('Wrote', file, `${size}x${size}`, 'from', path.basename(input));
+}
+
+const splashSrc = path.join(assets, 'splash-source-user.png');
+if (!fs.existsSync(splashSrc)) throw new Error('splash-source-user.png mancante');
+const splashLogo = await loadLogoBuffer(splashSrc, Math.round(CANVAS * 0.84));
+await sharp({ create: { width: CANVAS, height: CANVAS, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+  .composite([{ input: splashLogo, gravity: 'center' }])
+  .png()
+  .toFile(path.join(assets, 'splash-icon.png'));
+console.log('Wrote splash-icon.png 1024x1024 transparent from splash-source-user.png');

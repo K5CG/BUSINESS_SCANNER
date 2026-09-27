@@ -1,0 +1,317 @@
+import React, { useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  ScrollView,
+  Alert,
+  useWindowDimensions,
+} from 'react-native';
+import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { BusinessScannerLogo } from '../../components/BusinessScannerLogo';
+import { OtherDocumentTypePicker } from '../../components/OtherDocumentTypePicker';
+import { LanguagePicker } from '../../components/LanguagePicker';
+import { ThemePicker } from '../../components/ThemePicker';
+import { LicenseBanner } from '../../components/LicenseBanner';
+import { useLicense } from '../../components/LicenseProvider';
+import { usePrivacyConsent } from '../../components/PrivacyConsentProvider';
+import { exitAppSession } from '../../lib/app-exit';
+import { openPrivacyPolicyUrl } from '../../lib/open-privacy-policy';
+import { FALLBACK_PRIVACY_POLICY_URL } from '../../lib/privacy-config';
+import { getEntitlementCapabilities } from '../../lib/entitlement-capabilities';
+import { guardNewAcquisition } from '../../lib/trial-acquisition-guard';
+import { colors } from '../../lib/ui-theme';
+import { getUiViewportLayout } from '../../lib/ui-layout';
+import { radii, spacing, touchTarget, typography } from '../../lib/ui-system';
+import type { DocumentType } from '../../types';
+import type { OtherDocumentCategory } from '../../lib/document-category';
+import { processingTypeForCategory } from '../../lib/document-category';
+import { buildDocumentScanHref, createDocumentScanSessionId } from '../../lib/document-scan-navigation';
+
+type CommercialType = Extract<DocumentType, 'quote' | 'order' | 'invoice'>;
+
+export default function HomeScreen() {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { width, fontScale } = useWindowDimensions();
+  const responsive = getUiViewportLayout(width, fontScale);
+  const { status, openActivation } = useLicense();
+  const { privacyPolicyUrl } = usePrivacyConsent();
+  const [otherPickerVisible, setOtherPickerVisible] = useState(false);
+  const caps = getEntitlementCapabilities(
+    status.entitlement,
+    status.aiCreditsRemaining
+  );
+
+  const startCardScan = () => {
+    if (!guardNewAcquisition(caps, 'card', t, openActivation)) return;
+    router.push('/scan/business_card');
+  };
+
+  const startDocumentScan = (type: CommercialType) => {
+    if (!guardNewAcquisition(caps, 'document', t, openActivation)) return;
+    router.push(buildDocumentScanHref(type, type, createDocumentScanSessionId()));
+  };
+
+  const openOtherPicker = () => {
+    if (!guardNewAcquisition(caps, 'document', t, openActivation)) return;
+    setOtherPickerVisible(true);
+  };
+
+  const startOtherDocumentScan = (category: OtherDocumentCategory) => {
+    setOtherPickerVisible(false);
+    const processingType = processingTypeForCategory(category);
+    router.push(buildDocumentScanHref(processingType, category, createDocumentScanSessionId()));
+  };
+
+  const onExitApp = () => {
+    exitAppSession();
+  };
+
+  const onOpenPrivacyPolicy = () => {
+    openPrivacyPolicyUrl(privacyPolicyUrl || FALLBACK_PRIVACY_POLICY_URL, () => {
+      Alert.alert(t('error'), t('privacyPolicyUrlError'));
+    });
+  };
+
+  const commercialTypes: Array<{ type: CommercialType; icon: string; label: string }> = [
+    { type: 'quote', icon: '📄', label: t('quote') },
+    { type: 'order', icon: '📋', label: t('order') },
+    { type: 'invoice', icon: '🧾', label: t('invoice') },
+  ];
+
+  return (
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[
+        styles.container,
+        {
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom + 8,
+          paddingHorizontal: responsive.horizontalPadding,
+        },
+      ]}
+      showsVerticalScrollIndicator
+    >
+      <View style={styles.topBar}>
+        <ThemePicker />
+        <View style={styles.topBarRight}>
+          <LanguagePicker />
+          <TouchableOpacity
+            style={styles.exitButton}
+            onPress={onExitApp}
+            accessibilityRole="button"
+            accessibilityLabel={t('homeExitApp')}
+            accessibilityHint={t('homeExitAppHint')}
+          >
+            <Ionicons name="exit-outline" size={20} color={colors.textPrimary} accessible={false} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.header}>
+        <BusinessScannerLogo />
+        <LicenseBanner />
+        {status.kind === 'trial' || status.access === 'expired' ? (
+          <TouchableOpacity
+            onPress={openActivation}
+            style={styles.licenseLink}
+            accessibilityRole="button"
+            accessibilityLabel={
+              status.access === 'expired' ? t('licenseActivate') : t('licenseAlreadyHave')
+            }
+          >
+            <Text style={styles.licenseLinkText}>
+              {status.access === 'expired' ? t('licenseActivate') : t('licenseAlreadyHave')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <Text style={styles.title}>{t('selectDocumentType')}</Text>
+
+      <TouchableOpacity
+        style={[styles.card, styles.cardFullWidth]}
+        onPress={startCardScan}
+        accessibilityRole="button"
+        accessibilityLabel={t('businessCard')}
+      >
+        <Text style={styles.icon}>👤</Text>
+        <Text style={styles.label}>{t('businessCard')}</Text>
+      </TouchableOpacity>
+
+      <View style={styles.grid}>
+        {commercialTypes.map((item) => (
+          <TouchableOpacity
+            key={item.type}
+            style={[
+              styles.card,
+              styles.cardHalf,
+              responsive.stackActions && styles.cardStacked,
+            ]}
+            onPress={() => startDocumentScan(item.type)}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+          >
+            <Text style={styles.icon}>{item.icon}</Text>
+            <Text style={styles.label}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity
+          style={[
+            styles.card,
+            styles.cardHalf,
+            responsive.stackActions && styles.cardStacked,
+            styles.cardSecondary,
+          ]}
+          onPress={openOtherPicker}
+          accessibilityRole="button"
+          accessibilityLabel={t('otherDocument')}
+          accessibilityHint={t('otherDocumentPickerMessage')}
+        >
+          <Text style={styles.icon}>📝</Text>
+          <Text style={[styles.label, styles.labelSecondary]}>{t('otherDocument')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <OtherDocumentTypePicker
+        visible={otherPickerVisible}
+        onSelect={startOtherDocumentScan}
+        onCancel={() => setOtherPickerVisible(false)}
+      />
+
+      <TouchableOpacity
+        style={styles.privacyLink}
+        onPress={onOpenPrivacyPolicy}
+        accessibilityRole="link"
+        accessibilityLabel={t('privacyPolicy')}
+        accessibilityHint={t('privacyPolicyHint')}
+      >
+        <Ionicons
+          name="shield-checkmark-outline"
+          size={18}
+          color={colors.primary}
+          accessible={false}
+        />
+        <Text style={styles.privacyLinkText}>{t('privacyPolicy')}</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  container: {
+    flexGrow: 1,
+    backgroundColor: colors.background,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 22,
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  exitButton: {
+    minWidth: touchTarget.minimum,
+    minHeight: touchTarget.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+  },
+  header: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    marginBottom: 0,
+    backgroundColor: 'transparent',
+  },
+  licenseLink: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    minHeight: touchTarget.minimum,
+    justifyContent: 'center',
+  },
+  licenseLinkText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  privacyLink: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    minHeight: touchTarget.minimum,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  privacyLinkText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  title: {
+    ...typography.heading2,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+    color: colors.textPrimary,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+    shadowColor: colors.textPrimary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  cardFullWidth: {
+    width: '100%',
+  },
+  cardHalf: {
+    width: '48%',
+  },
+  cardStacked: {
+    width: '100%',
+  },
+  cardSecondary: {
+    backgroundColor: colors.surfaceMuted,
+    borderStyle: 'dashed',
+  },
+  icon: { fontSize: 36, lineHeight: 44, marginBottom: spacing.xs },
+  label: { ...typography.label, color: colors.textPrimary, textAlign: 'center' },
+  labelSecondary: { color: colors.textSecondary },
+});

@@ -1,0 +1,10 @@
+# Progetto topscanner — vedi .env.example per URL e anon key dopo `supabase link`
+
+[functions.parse-pdf]
+verify_jwt = true
+
+[functions.parse-document]
+verify_jwt = true
+
+[functions.structure-business-card]
+verify_jwt = true

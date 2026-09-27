@@ -1,0 +1,526 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { colors } from '../lib/ui-theme';
+import { getSafeModalHeight, getUiViewportLayout } from '../lib/ui-layout';
+import { radii, spacing, typography } from '../lib/ui-system';
+import { getAiNoticePreference, saveAiNoticePreference } from '../lib/ai-notice-preference';
+import { useModalAccessibilityFocus } from '../lib/use-modal-accessibility-focus';
+import { resolveDocumentAiCreditState } from '../lib/document-ai-credits';
+import { geminiModalActionsStacked, geminiModalConfirmKey, geminiModalCancelFlex, geminiModalConfirmFlex, geminiModalConfirmMaxLines } from '../lib/gemini-modal-actions';
+
+import { useLicense } from './LicenseProvider';
+
+interface GeminiConfirmationModalProps {
+  visible: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  creditsToConsume?: number;
+  currentRemainingCredits?: number;
+  contentKind?: 'text' | 'images' | 'pdf';
+  pageCount?: number;
+  showCredits?: boolean;
+}
+
+export function GeminiConfirmationModal({
+  visible,
+  onCancel,
+  onConfirm,
+  creditsToConsume = 1,
+  currentRemainingCredits,
+  contentKind = 'text',
+  pageCount = 1,
+  showCredits = true,
+}: GeminiConfirmationModalProps) {
+  const { t } = useTranslation();
+  const { width, height, fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const responsive = getUiViewportLayout(width, fontScale);
+  const modalMaxHeight = getSafeModalHeight(height, insets.top, insets.bottom);
+  const [loadingPref, setLoadingPref] = useState(true);
+  const [skipExtended, setSkipExtended] = useState(false);
+  const [dontShowAgainChecked, setDontShowAgainChecked] = useState(false);
+  const mountedRef = useRef(true);
+  const modalRef = useRef<View>(null);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  useModalAccessibilityFocus(visible, modalRef, loadingPref);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  let activeRemaining = currentRemainingCredits;
+  try {
+    const license = useLicense();
+    if ('aiCreditsRemaining' in license.status) {
+      activeRemaining = license.status.aiCreditsRemaining ?? undefined;
+    }
+  } catch {
+    // fallback se fuori dal provider
+  }
+
+  const creditState = resolveDocumentAiCreditState(activeRemaining ?? null);
+  const creditsKnown = creditState.kind === 'remaining';
+  const creditsExhausted = creditState.kind === 'exhausted';
+  const creditsUnavailable = creditState.kind === 'unavailable';
+  const displayRemaining = creditsKnown ? creditState.value : 0;
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    setLoadingPref(true);
+    void getAiNoticePreference()
+      .then((pref) => {
+        if (!active || !mountedRef.current || !visibleRef.current) return;
+        setSkipExtended(pref.skipExtendedNotice);
+        setDontShowAgainChecked(pref.skipExtendedNotice);
+        setLoadingPref(false);
+      })
+      .catch(() => {
+        if (active && mountedRef.current && visibleRef.current) {
+          setLoadingPref(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [visible]);
+
+  const handleConfirm = async () => {
+    if (!mountedRef.current || !visibleRef.current) return;
+    if (!skipExtended && dontShowAgainChecked) {
+      await saveAiNoticePreference(true).catch(() => undefined);
+    }
+    if (!mountedRef.current || !visibleRef.current) return;
+    onConfirm();
+  };
+
+  const remainingAfter = creditsKnown
+    ? Math.max(0, displayRemaining - creditsToConsume)
+    : 0;
+  const showCreditDetails = showCredits && creditsKnown;
+  // Il conteggio dei crediti blocca la conferma solo quando il riquadro lo
+  // presenta davvero. L'importazione PDF ha un permesso proprio e non espone
+  // crediti: legarla allo stato generale la renderebbe inavviabile.
+  const confirmDisabled = showCredits && (creditsExhausted || creditsUnavailable);
+  const introKey =
+    contentKind === 'images'
+      ? 'geminiModalIntroImages'
+      : contentKind === 'pdf'
+        ? 'geminiModalIntroPdf'
+        : 'geminiModalIntro';
+  const confirmKey = geminiModalConfirmKey(contentKind);
+  const stackActions = geminiModalActionsStacked(contentKind, responsive.stackActions);
+  const confirmFlex = contentKind === 'images' ? 1.35 : geminiModalConfirmFlex(contentKind);
+  const cancelFlex = contentKind === 'images' ? 0.9 : geminiModalCancelFlex(contentKind);
+  const confirmMaxLines = contentKind === 'images' ? 1 : geminiModalConfirmMaxLines(contentKind);
+  const shortBodyKey =
+    contentKind === 'images'
+      ? showCredits
+        ? 'geminiModalShortBodyImages'
+        : 'geminiModalShortBodyImagesNoCredits'
+      : contentKind === 'pdf'
+        ? showCredits
+          ? 'geminiModalShortBodyPdf'
+          : 'geminiModalShortBodyPdfNoCredits'
+        : 'geminiModalShortBody';
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingHorizontal: responsive.modalHorizontalPadding,
+            paddingTop: Math.max(insets.top, 12),
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
+        <View
+          style={[styles.container, { maxHeight: modalMaxHeight }]}
+          accessibilityViewIsModal
+          importantForAccessibility="yes"
+        >
+          {loadingPref ? (
+            <View
+              ref={modalRef}
+              style={styles.loadingBox}
+              accessibilityRole="progressbar"
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={t('loading')}
+            >
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : skipExtended ? (
+            /* Short Notice Version */
+            <ScrollView
+              style={styles.shortScroll}
+              contentContainerStyle={styles.shortContent}
+              showsVerticalScrollIndicator
+            >
+              <View
+                ref={modalRef}
+                style={styles.shortHeader}
+                accessible
+                accessibilityRole="header"
+                accessibilityLabel={t('geminiModalTitleShort')}
+              >
+                <Ionicons name="sparkles" size={24} color={colors.primary} />
+                <Text style={styles.shortTitle}>{t('geminiModalTitleShort')}</Text>
+              </View>
+
+              <Text style={styles.shortBody} allowFontScaling={false}>
+                {t(shortBodyKey, {
+                  credits: creditsToConsume,
+                  remaining: remainingAfter,
+                  count: pageCount,
+                })}
+              </Text>
+
+              <View
+                style={[
+                  styles.actions,
+                  contentKind === 'pdf' && styles.actionsPdf,
+                  stackActions && styles.actionsStacked,
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.cancelButton,
+                    { flex: cancelFlex },
+                    stackActions && styles.buttonStacked,
+                  ]}
+                  onPress={onCancel}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('geminiModalCancelButton')}
+                >
+                  <Text style={styles.cancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{t('geminiModalCancelButton')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.confirmButton,
+                    { flex: confirmFlex },
+                    stackActions && styles.buttonStacked,
+                    confirmDisabled && styles.confirmDisabled,
+                  ]}
+                  onPress={handleConfirm}
+                  disabled={confirmDisabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(confirmKey)}
+                  accessibilityState={{ disabled: confirmDisabled }}
+                >
+                  <Text style={styles.confirmText} numberOfLines={confirmMaxLines} adjustsFontSizeToFit minimumFontScale={0.78}>
+                    {t(confirmKey)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          ) : (
+            /* Extended Notice Version */
+            <View style={styles.extendedContent}>
+              <ScrollView style={styles.scroll} showsVerticalScrollIndicator>
+                <View
+                  ref={modalRef}
+                  style={styles.header}
+                  accessible
+                  accessibilityRole="header"
+                  accessibilityLabel={t('geminiModalTitleExtended')}
+                >
+                  <Ionicons name="shield-checkmark-outline" size={28} color={colors.info} />
+                  <Text style={styles.title}>{t('geminiModalTitleExtended')}</Text>
+                </View>
+
+                <Text style={styles.intro} allowFontScaling={false}>
+                  {t(introKey, { count: pageCount })}
+                </Text>
+
+                <View style={styles.warningBox}>
+                  <Text style={styles.warningTitle}>{t('geminiModalWarningTitle')}</Text>
+                  <Text style={styles.warningBody} allowFontScaling={false}>{t('geminiModalWarningText')}</Text>
+                </View>
+
+                <View style={styles.privacyBox}>
+                  <Text style={styles.privacyNotice} allowFontScaling={false}>{t('geminiModalPrivacyNotice')}</Text>
+                </View>
+
+                {showCreditDetails ? (
+                  <View style={styles.creditBox}>
+                    <Text style={styles.creditConsume}>
+                      {t('geminiModalCreditConsume', { credits: creditsToConsume })}
+                    </Text>
+                    <Text style={styles.creditRemaining}>
+                      {t('geminiModalCreditRemaining', { remaining: remainingAfter })}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  activeOpacity={0.8}
+                  onPress={() => setDontShowAgainChecked(!dontShowAgainChecked)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: dontShowAgainChecked }}
+                  accessibilityLabel={t('geminiModalDontShowAgain')}
+                >
+                  <Ionicons
+                    name={dontShowAgainChecked ? 'checkbox' : 'square-outline'}
+                    size={22}
+                    color={dontShowAgainChecked ? colors.primary : colors.textDisabled}
+                  />
+                  <Text style={styles.checkboxLabel} allowFontScaling={false}>{t('geminiModalDontShowAgain')}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+
+              <View
+                style={[
+                  styles.actions,
+                  contentKind === 'pdf' && styles.actionsPdf,
+                  stackActions && styles.actionsStacked,
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.cancelButton,
+                    { flex: cancelFlex },
+                    stackActions && styles.buttonStacked,
+                  ]}
+                  onPress={onCancel}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('geminiModalCancelButton')}
+                >
+                  <Text style={styles.cancelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{t('geminiModalCancelButton')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.confirmButton,
+                    { flex: confirmFlex },
+                    stackActions && styles.buttonStacked,
+                    confirmDisabled && styles.confirmDisabled,
+                  ]}
+                  onPress={handleConfirm}
+                  disabled={confirmDisabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(confirmKey)}
+                  accessibilityState={{ disabled: confirmDisabled }}
+                >
+                  <Text style={styles.confirmText} numberOfLines={confirmMaxLines} adjustsFontSizeToFit minimumFontScale={0.78}>
+                    {t(confirmKey)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    width: '100%',
+    maxWidth: 500,
+    overflow: 'hidden',
+    shadowColor: colors.textPrimary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  loadingBox: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortContent: {
+    padding: spacing.xl,
+  },
+  shortScroll: {
+    flexGrow: 0,
+  },
+  shortHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  shortTitle: {
+    ...typography.heading3,
+    color: colors.textPrimary,
+  },
+  shortBody: {
+    ...typography.bodySecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
+  },
+  extendedContent: {
+    flexShrink: 1,
+  },
+  scroll: {
+    padding: spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  title: {
+    ...typography.heading2,
+    color: colors.textPrimary,
+  },
+  intro: {
+    ...typography.bodySecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  warningBox: {
+    backgroundColor: colors.warningSurface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  warningTitle: {
+    ...typography.label,
+    color: colors.warning,
+    marginBottom: 6,
+  },
+  warningBody: {
+    ...typography.bodySecondary,
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.textPrimary,
+  },
+  privacyBox: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  privacyNotice: {
+    ...typography.bodySecondary,
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.textSecondary,
+  },
+  creditBox: {
+    backgroundColor: colors.infoSurface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.info,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  creditConsume: {
+    ...typography.label,
+    color: colors.info,
+    marginBottom: 2,
+  },
+  creditRemaining: {
+    ...typography.caption,
+    color: colors.info,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  checkboxLabel: {
+    ...typography.bodySecondary,
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  actionsPdf: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  actionsStacked: {
+    flexDirection: 'column',
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  buttonStacked: {
+    flex: 0,
+    width: '100%',
+  },
+  cancelButton: {
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  confirmButton: {
+    backgroundColor: colors.primary,
+  },
+  confirmDisabled: {
+    opacity: 0.45,
+  },
+  cancelText: {
+    color: colors.textPrimary,
+    ...typography.button,
+    fontWeight: '600',
+  },
+  confirmText: {
+    color: colors.textOnPrimary,
+    ...typography.button,
+    textAlign: 'center',
+    paddingHorizontal: 2,
+  },
+});

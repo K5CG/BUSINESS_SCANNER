@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "tests/document-field-merge.test.ts",
+    "tests/document-field-merge-adversarial.test.ts",
+    "lib/document-field-merge.ts",
+    "lib/document-field-merge-application.ts",
+    "lib/document-ai-review.ts",
+    "lib/document-from-extract.ts",
+    "lib/document-page-extraction.ts",
+    "lib/document-parser.ts",
+    "lib/gemini-document-extract.ts",
+    "types/**/*.ts"
+  ]
+}

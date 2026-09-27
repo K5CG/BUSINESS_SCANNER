@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16"
+  },
+  "include": [
+    "tests/ocr-quality.test.ts",
+    "lib/ocr-quality.ts",
+    "lib/ocr-quality-view-model.ts",
+    "lib/document-page-extraction.ts",
+    "lib/document-field-reliability.ts",
+    "lib/email-evidence.ts",
+    "types/**/*.ts"
+  ]
+}
